@@ -5,26 +5,7 @@ import { Msg } from "gen/testproto/test_pb";
 import { Body, RequestHeader, ResponseStatus, Rpc } from "gen/goatorepo/rpc_pb";
 import { GoatTransport } from "goat";
 import { vi } from "vitest";
-
-class AwaitableQueue<T> {
-    private q = Array<T>();
-    private notify?: () => void;
-
-    push(item: T) {
-        this.q.push(item);
-        if (this.notify) {
-            this.notify();
-        }
-    }
-    async pop(): Promise<T> {
-        while (this.q.length == 0) {
-            await new Promise<void>(r => {
-                this.notify = r;
-            });
-        }
-        return this.q.shift()!!;
-    }
-}
+import { AwaitableQueue } from "./util";
 
 const newFifoMockReadWrite = function () {
     const fifo = new AwaitableQueue<Rpc>();
