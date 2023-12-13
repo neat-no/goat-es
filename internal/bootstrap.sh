@@ -12,16 +12,12 @@ check_bin() {
 	[ -f "${check}" ] && sha1sum --status --check "${check}"
 }
 
-check_dprint() {
-	local name="$1"
-	local check="${checkdir}/${name}.sha1sum"
-
-}
-
 install_buf() {
 	mkdir -p "${bindir}"
 
 	check_bin "buf" && return
+
+	echo "Download buf..."
 
 	BIN="${bindir}" && \
 	VERSION="1.28.1" && \
@@ -37,6 +33,8 @@ install_dprint_plugin() {
 	local plugin="${dprint_dir}/${name}"
 
 	check_bin "${name}" && return
+
+	echo "Download ${name}..."
 	mkdir -p "${dprint_dir}"
 	curl -fsSL "https://plugins.dprint.dev/${name}" --output "${plugin}"
 }
