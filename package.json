@@ -1,12 +1,16 @@
 {
     "name": "goat-es",
     "version": "1.0.0",
-    "description": "",
+    "description": "GOAT in ECMAScript",
     "main": "index.js",
     "scripts": {
+        "bootstrap": "bash internal/bootstrap.ts",
+        "eslint": "eslint",
+        "gen": "./internal/.bin/buf generate --exclude-path=./node_modules",
+        "format": "dprint fmt",
         "test": "vitest run"
     },
-    "author": "",
+    "author": "Avos Technologies",
     "license": "UNLICENSED",
     "dependencies": {
         "@bufbuild/buf": "^1.28.1",

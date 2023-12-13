@@ -1,0 +1,10 @@
+version: v1
+plugins:
+  - plugin: es
+    out: gen
+    path: ./node_modules/.bin/protoc-gen-es
+
+  # This is only needed for test code -- it's for RPC definitions
+  - plugin: connect-es
+    out: gen
+    path: ./node_modules/.bin/protoc-gen-connect-es
