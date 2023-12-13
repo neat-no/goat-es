@@ -10,7 +10,7 @@ export interface RpcReadWriter {
 
 export class GoatTransport implements Transport {
     channel: RpcReadWriter;
-    outstanding = new Map<number, { resolve: (rpc: Rpc) => void, reject: (reason: any) => void }>(); 
+    outstanding = new Map<number, { resolve: (rpc: Rpc) => void; reject: (reason: any) => void; }>();
     // GOAT uses 64-bit ints (bigint) for IDs natively, but it's fine to use
     // "number" as we're in charge of allocating them here, and there are enough
     // integers available to not overflow (Number.MAX_SAFE_INTEGER ~= 2^53)
@@ -35,7 +35,7 @@ export class GoatTransport implements Transport {
 
                 this.startReader();
             })
-            .catch((reason) => {
+            .catch(reason => {
                 this.readError = reason;
 
                 for (const value of this.outstanding.values()) {
@@ -54,7 +54,7 @@ export class GoatTransport implements Transport {
         contextValues?: ContextValues | undefined,
     ): Promise<UnaryResponse<I, O>> {
         if (this.readError) {
-            throw(new Error(this.readError));
+            throw (new Error(this.readError));
         }
 
         return runUnaryCall({
@@ -87,7 +87,7 @@ export class GoatTransport implements Transport {
         contextValues?: ContextValues | undefined,
     ): Promise<StreamResponse<I, O>> {
         if (this.readError) {
-            throw(new Error(this.readError));
+            throw (new Error(this.readError));
         }
 
         return runStreamingCall({
