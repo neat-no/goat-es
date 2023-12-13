@@ -1,6 +1,5 @@
 gen
-.task
-.data/dprint
-.data/bin
+internal/dprint
+internal/.bin
 node_modules
 buf

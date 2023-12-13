@@ -4,7 +4,7 @@
     "description": "GOAT in ECMAScript",
     "main": "index.js",
     "scripts": {
-        "bootstrap": "bash internal/bootstrap.ts",
+        "bootstrap": "bash internal/bootstrap.sh",
         "eslint": "eslint",
         "gen": "./internal/.bin/buf generate --exclude-path=./node_modules",
         "format": "dprint fmt",
