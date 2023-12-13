@@ -8,6 +8,7 @@
         "eslint": "eslint",
         "gen": "./internal/.bin/buf generate --exclude-path=./node_modules",
         "format": "dprint fmt",
+        "format:check": "dprint check",
         "test": "vitest run"
     },
     "author": "Avos Technologies",

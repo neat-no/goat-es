@@ -194,9 +194,13 @@ export class GoatTransport implements Transport {
         req.signal.addEventListener("abort", notifyAbort);
 
         // Configure how we deal with responses first
-        this.outstanding.set(id, { 
-            resolve: (rpc) => { outputIterable.write(rpc).catch(() => {}) }, 
-            reject: (reason) => { outputIterable.write(reason).catch(() => {}) },
+        this.outstanding.set(id, {
+            resolve: rpc => {
+                outputIterable.write(rpc).catch(() => {});
+            },
+            reject: reason => {
+                outputIterable.write(reason).catch(() => {});
+            },
         });
 
         try {
