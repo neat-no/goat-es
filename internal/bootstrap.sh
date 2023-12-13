@@ -9,7 +9,7 @@ dprint_dir="${rootdir}/internal/dprint"
 check_bin() {
 	local name="$1"
 	local check="${checkdir}/${name}.sha1sum"
-	[ -f "${check}" ] && sha1sum --status --check "${check}"
+	[ -f "${check}" ] && sha1sum --status --check "${check}" 2>/dev/null
 }
 
 install_buf() {
