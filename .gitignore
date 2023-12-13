@@ -1,0 +1,6 @@
+gen
+.task
+.data/dprint
+.data/bin
+node_modules
+buf

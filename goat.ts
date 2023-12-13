@@ -1,0 +1,304 @@
+import { Body, KeyValue, RequestHeader, Rpc, Trailer } from "./gen/wrapped_pb";
+import { Message, AnyMessage, ServiceType, MethodInfo, PartialMessage, MethodKind, Method } from "@bufbuild/protobuf";
+import { ContextValues, createContextValues, Transport, StreamResponse, UnaryRequest, UnaryResponse, ConnectError, StreamRequest, Code } from "@connectrpc/connect";
+import { runUnaryCall, runStreamingCall, createMethodSerializationLookup, createWritableIterable, pipe } from "@connectrpc/connect/protocol";
+
+export interface RpcReadWriter {
+    read(): Promise<Rpc>;
+    write(rpc: Rpc): Promise<void>;
+}
+
+export class GoatTransport implements Transport {
+    channel: RpcReadWriter;
+    outstanding: Record<number, ((rpc: Rpc) => void) | undefined> = {};
+    // GOAT uses 64-bit ints (bigint) for IDs natively, but it's fine to use
+    // "number" as we're in charge of allocating them here, and there are enough
+    // integers available to not overflow (Number.MAX_SAFE_INTEGER ~= 2^53)
+    nextId: number = 0;
+
+    constructor(ch: RpcReadWriter) {
+        this.channel = ch;
+
+        this.startReader();
+    }
+
+    private startReader(): void {
+        this.channel.read()
+            .then(rpc => {
+                const id = Number(rpc.id);
+
+                const resolve = this.outstanding[id];
+                if (resolve) {
+                    resolve(rpc);
+                }
+
+                this.startReader();
+            })
+            .catch(() => {
+                // TODO: error all outstanding RPCs
+                // TODO: consider how we stop new RPCs getting stuck too
+                console.error("TODO");
+            });
+    }
+
+    unary<I extends Message<I> = AnyMessage, O extends Message<O> = AnyMessage>(
+        service: ServiceType,
+        method: MethodInfo<I, O>,
+        signal: AbortSignal | undefined,
+        timeoutMs: number | undefined,
+        header: HeadersInit | undefined,
+        input: PartialMessage<I>,
+        contextValues?: ContextValues | undefined,
+    ): Promise<UnaryResponse<I, O>> {
+        return runUnaryCall({
+            interceptors: [],
+            signal: signal,
+            timeoutMs: timeoutMs,
+            req: {
+                stream: false,
+                service: service,
+                method: method,
+                header: new Headers(header),
+                contextValues: contextValues ?? createContextValues(),
+                url: "",
+                init: {},
+                message: input,
+            },
+            next: req => {
+                return this.performUnary(req);
+            },
+        });
+    }
+
+    stream<I extends Message<I> = AnyMessage, O extends Message<O> = AnyMessage>(
+        service: ServiceType,
+        method: MethodInfo<I, O>,
+        signal: AbortSignal | undefined,
+        timeoutMs: number | undefined,
+        header: HeadersInit | undefined,
+        input: AsyncIterable<PartialMessage<I>>,
+        contextValues?: ContextValues | undefined,
+    ): Promise<StreamResponse<I, O>> {
+        return runStreamingCall({
+            interceptors: [],
+            signal: signal,
+            timeoutMs: timeoutMs,
+            req: {
+                stream: true,
+                service: service,
+                method: method,
+                header: new Headers(header),
+                contextValues: contextValues ?? createContextValues(),
+                url: "",
+                init: {},
+                message: input,
+            },
+            next: req => {
+                return this.performStreaming(req);
+            },
+        });
+    }
+
+    private async performUnary<I extends Message<I> = AnyMessage, O extends Message<O> = AnyMessage>(req: UnaryRequest<I, O>): Promise<UnaryResponse<I, O>> {
+        const serdes = createMethodSerializationLookup(req.method, undefined, undefined, { writeMaxBytes: 10000000, readMaxBytes: 10000000 });
+        const id = this.nextId++;
+        const { promise: rpcPromise, resolve: rpcResolve, reject: rpcReject } = promiseWithResolvers<Rpc>();
+        var ret: Rpc;
+
+        req.signal.throwIfAborted();
+        req.signal.addEventListener("abort", () => {
+            rpcReject(req.signal.reason);
+        });
+
+        this.outstanding[id] = rpcResolve;
+        try {
+            await this.channel.write(
+                new Rpc({
+                    id: BigInt(id),
+                    header: {
+                        method: methodName(req),
+                        headers: headersToRpcHeaders(req.header),
+                    },
+                    body: {
+                        data: serdes.getI(true).serialize(req.message),
+                    },
+                    trailer: {},
+                }),
+            );
+            ret = await rpcPromise;
+        }
+        finally {
+            delete (this.outstanding[id]);
+        }
+
+        if (ret.status && ret.status?.code != 0) {
+            throw new ConnectError(
+                ret.status?.message || "Unknown",
+                ret.status?.code,
+                undefined,
+                ret.status?.details,
+            );
+        }
+        else if (ret.body) {
+            const msg = serdes.getO(true).parse(ret.body.data);
+            return {
+                stream: false,
+                service: req.service,
+                method: req.method,
+                header: rpcHeadersToHeaders(ret.header?.headers),
+                trailer: rpcHeadersToHeaders(ret.trailer?.metadata),
+                message: msg,
+            };
+        }
+        else {
+            // No body defined, no status... Invalid?
+            // FIXME: error handling here
+            throw new ConnectError("invalid response");
+        }
+    }
+
+    private async performStreaming<I extends Message<I> = AnyMessage, O extends Message<O> = AnyMessage>(req: StreamRequest<I, O>): Promise<StreamResponse<I, O>> {
+        const serdes = createMethodSerializationLookup(req.method, undefined, undefined, { writeMaxBytes: 10000000, readMaxBytes: 10000000 });
+        const id = this.nextId++;
+        const outputIterable = createWritableIterable<Rpc | Error>();
+        const requestHeader = new RequestHeader({
+            method: methodName(req),
+            headers: headersToRpcHeaders(req.header),
+        });
+        const cleanup = () => {
+            delete (this.outstanding[id]);
+            outputIterable.close();
+        };
+
+        req.signal.throwIfAborted();
+        req.signal.addEventListener("abort", () => {
+            outputIterable.write(new Error(req.signal.reason));
+        });
+
+        // Configure how we deal with responses first
+        this.outstanding[id] = outputIterable.write;
+
+        try {
+            // Bidirection streams uniquely need a kick to start streaming, to allow the server
+            // to send us responses before we send any client data. This isn't needed for other
+            // cases as we're guaranteed to have client data to send.
+            if (req.method.kind == MethodKind.BiDiStreaming) {
+                await this.channel.write(
+                    new Rpc({
+                        id: BigInt(id),
+                        header: requestHeader,
+                    }),
+                );
+            }
+
+            // Start an async operation to stream our messages. In the case of a ServerStream,
+            // there will just be a single message to upload. In other cases there can be many.
+            const uploadPromise = new Promise<void>(async (resolve, reject) => {
+                try {
+                    for await (const upload of req.message) {
+                        await this.channel.write(
+                            new Rpc({
+                                id: BigInt(id),
+                                header: requestHeader,
+                                body: {
+                                    data: serdes.getI(true).serialize(upload),
+                                },
+                            }),
+                        );
+                    }
+
+                    // Need to send an "end stream" command now, which means specifying a `trailer`
+                    await this.channel.write(
+                        new Rpc({
+                            id: BigInt(id),
+                            header: requestHeader,
+                            trailer: {},
+                        }),
+                    );
+                }
+                catch (err) {
+                    reject(err);
+                    return;
+                }
+                resolve();
+            });
+            uploadPromise.catch(err => {
+                outputIterable.write(new Error(`upload error: ${err}`));
+            });
+
+            return {
+                stream: true,
+                service: req.service,
+                method: req.method,
+                header: req.header,
+                trailer: new Headers(),
+                message: pipe(
+                    outputIterable,
+                    async function* (iterable) {
+                        try {
+                            for await (const rpc of iterable) {
+                                if (rpc instanceof Error) {
+                                    throw rpc;
+                                }
+                                if (rpc.status && rpc.status.code != 0) {
+                                    throw new ConnectError(rpc.status.message, rpc.status.code, undefined, rpc.status.details);
+                                }
+                                if (rpc.body) {
+                                    yield serdes.getO(true).parse(rpc.body.data);
+                                }
+                                if (rpc.trailer) {
+                                    return;
+                                }
+                            }
+                        }
+                        finally {
+                            cleanup();
+                        }
+                    },
+                    { propagateDownStreamError: true },
+                ),
+            };
+        }
+        catch (err) {
+            cleanup();
+            throw err;
+        }
+    }
+}
+
+function rpcHeadersToHeaders(reqHeader: KeyValue[] | undefined): Headers {
+    if (!reqHeader) {
+        return new Headers([]);
+    }
+    return new Headers(reqHeader.map(kv => {
+        return [kv.key, kv.value];
+    }));
+}
+
+function headersToRpcHeaders(input: HeadersInit | undefined): KeyValue[] {
+    const headers: KeyValue[] = [];
+    new Headers(input).forEach((value, key) => {
+        headers.push(new KeyValue({ key: key, value: value }));
+    });
+    return headers;
+}
+
+function methodName<I extends Message<I> = AnyMessage, O extends Message<O> = AnyMessage>(req: StreamRequest<I, O> | UnaryRequest<I, O>): string {
+    return `/${req.service.typeName}/${req.method.name}`;
+}
+
+// ~polyfill for Promise.withResolvers(), which was only introduced recently and is not supported everywhere.
+// See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/withResolvers
+function promiseWithResolvers<T>() {
+    var resolver: ((value: T) => void) | undefined = undefined;
+    var rejecter: ((value: any) => void) | undefined = undefined;
+    const promise = new Promise<T>((resolve, reject) => {
+        resolver = resolve;
+        rejecter = reject;
+    });
+    return {
+        promise: promise,
+        resolve: resolver!,
+        reject: rejecter!,
+    };
+}

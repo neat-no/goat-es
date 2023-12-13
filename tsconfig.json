@@ -1,0 +1,22 @@
+// https://www.typescriptlang.org/docs/handbook/react-&-webpack.html
+{
+    "compilerOptions": {
+        "noEmit": true,
+        "sourceMap": true,
+        "noImplicitAny": true,
+        "module": "commonjs",
+        "target": "ES2018",
+        "noImplicitReturns": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "isolatedModules": true,
+        "useDefineForClassFields": true,
+        "baseUrl": ".",
+        "esModuleInterop": true,
+        "resolveJsonModule": true,
+        "skipLibCheck": true,
+        "strict": true,
+        "types": ["vitest/globals"]
+    },
+    "exclude": ["node_modules"]
+}
