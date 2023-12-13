@@ -176,7 +176,14 @@ export class GoatTransport implements Transport {
             method: methodName(req),
             headers: headersToRpcHeaders(req.header),
         });
-        const notifyAbort = () => outputIterable.write(new Error(req.signal.reason));
+        const notifyAbort = () => {
+            // Note when we write to outputIterable in a callback like this outside of an async
+            // context we can't be sure of ordering -- it might be we've hit an error before this
+            // and the consumer has stopped reading from our output. So be sure to catch() and
+            // ignore any errors in such a case; else we're left with dangling promises that at
+            // the very least cause test failures due to an "Unhandled Rejection".
+            outputIterable.write(new Error(req.signal.reason)).catch(() => {});
+        };
         const cleanup = () => {
             this.outstanding.delete(id);
             outputIterable.close();
@@ -187,7 +194,10 @@ export class GoatTransport implements Transport {
         req.signal.addEventListener("abort", notifyAbort);
 
         // Configure how we deal with responses first
-        this.outstanding.set(id, { resolve: outputIterable.write, reject: outputIterable.write });
+        this.outstanding.set(id, { 
+            resolve: (rpc) => { outputIterable.write(rpc).catch(() => {}) }, 
+            reject: (reason) => { outputIterable.write(reason).catch(() => {}) },
+        });
 
         try {
             // Bidirection streams uniquely need a kick to start streaming, to allow the server
