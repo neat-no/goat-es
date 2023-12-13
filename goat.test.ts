@@ -157,6 +157,11 @@ describe("unary RPC", () => {
             readRejected!(new Error("Read error"));
             await rpc;
         }).rejects.toThrow("Read error");
+
+        // Now that we're in the read error state, any RPC attempts should immediately fail
+        expect(async () => {
+            await ts.unary(new Msg({ value: 1 }));
+        }).rejects.toThrow("Read error");
     });
 
     it("sends headers", async () => {

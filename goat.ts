@@ -15,6 +15,7 @@ export class GoatTransport implements Transport {
     // "number" as we're in charge of allocating them here, and there are enough
     // integers available to not overflow (Number.MAX_SAFE_INTEGER ~= 2^53)
     nextId: number = 0;
+    readError: any = undefined;
 
     constructor(ch: RpcReadWriter) {
         this.channel = ch;
@@ -35,6 +36,8 @@ export class GoatTransport implements Transport {
                 this.startReader();
             })
             .catch((reason) => {
+                this.readError = reason;
+
                 for (const value of this.outstanding.values()) {
                     value.reject(reason);
                 }
@@ -50,6 +53,10 @@ export class GoatTransport implements Transport {
         input: PartialMessage<I>,
         contextValues?: ContextValues | undefined,
     ): Promise<UnaryResponse<I, O>> {
+        if (this.readError) {
+            throw(new Error(this.readError));
+        }
+
         return runUnaryCall({
             interceptors: [],
             signal: signal,
@@ -79,6 +86,10 @@ export class GoatTransport implements Transport {
         input: AsyncIterable<PartialMessage<I>>,
         contextValues?: ContextValues | undefined,
     ): Promise<StreamResponse<I, O>> {
+        if (this.readError) {
+            throw(new Error(this.readError));
+        }
+        
         return runStreamingCall({
             interceptors: [],
             signal: signal,
