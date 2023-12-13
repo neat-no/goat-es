@@ -11,13 +11,12 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
-        node-version: [18.x]
-        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
+        node-version: [24.x]
+        # https://nodejs.org/en/about/previous-releases
 
     steps:
     - uses: actions/checkout@v3
@@ -30,6 +29,16 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
+
+    - name: Cache bootstrap files
+      id: cache-bootstrap
+      uses: actions/cache@v3
+      with:
+        path: |
+          internal/.bin
+          internal/dprint
+        key: ${{ runner.os }}-bootstrap
+    
     - run: npm ci
     - run: npm run bootstrap
     - run: npm run gen

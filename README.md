@@ -1,4 +1,4 @@
-# Typescript / ECAMScript support for GOAT
+# Typescript / ECMAScript support for GOAT
 
 See (GOAT)[https://github.com/avos-io/goat] for the canonical GOAT repository.
 
