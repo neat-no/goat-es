@@ -138,6 +138,27 @@ describe("unary RPC", () => {
         }).rejects.toThrow("[canceled] This operation was aborted");
     });
 
+    it("handles read error during RPC", async () => {
+        const mockRrw = newFifoMockReadWrite();
+        var readRejected: ((reason: any) => void) | undefined = undefined;
+
+        mockRrw.read.mockImplementation(() => {
+            // Don't resolve, just block indefinitely
+            return new Promise<Rpc>((_, reject) => {
+                readRejected = reject;
+            });
+        });
+
+        const transport = new GoatTransport(mockRrw);
+        const ts = createPromiseClient(TestService, transport);
+
+        expect(async () => {
+            const rpc = ts.unary(new Msg({ value: 1 }));
+            readRejected!(new Error("Read error"));
+            await rpc;
+        }).rejects.toThrow("Read error");
+    });
+
     it("sends headers", async () => {
         const mockRrw = newFifoMockReadWrite();
         var reqHeader: RequestHeader | undefined;

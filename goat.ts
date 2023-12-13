@@ -1,4 +1,4 @@
-import { Body, KeyValue, RequestHeader, Rpc, Trailer } from "./gen/wrapped_pb";
+import { KeyValue, RequestHeader, Rpc } from "./gen/wrapped_pb";
 import { Message, AnyMessage, ServiceType, MethodInfo, PartialMessage, MethodKind, Method } from "@bufbuild/protobuf";
 import { ContextValues, createContextValues, Transport, StreamResponse, UnaryRequest, UnaryResponse, ConnectError, StreamRequest, Code } from "@connectrpc/connect";
 import { runUnaryCall, runStreamingCall, createMethodSerializationLookup, createWritableIterable, pipe } from "@connectrpc/connect/protocol";
@@ -10,7 +10,7 @@ export interface RpcReadWriter {
 
 export class GoatTransport implements Transport {
     channel: RpcReadWriter;
-    outstanding: Record<number, ((rpc: Rpc) => void) | undefined> = {};
+    outstanding = new Map<number, { resolve: (rpc: Rpc) => void, reject: (reason: any) => void }>(); 
     // GOAT uses 64-bit ints (bigint) for IDs natively, but it's fine to use
     // "number" as we're in charge of allocating them here, and there are enough
     // integers available to not overflow (Number.MAX_SAFE_INTEGER ~= 2^53)
@@ -27,17 +27,17 @@ export class GoatTransport implements Transport {
             .then(rpc => {
                 const id = Number(rpc.id);
 
-                const resolve = this.outstanding[id];
-                if (resolve) {
-                    resolve(rpc);
+                const resolver = this.outstanding.get(id);
+                if (resolver) {
+                    resolver.resolve(rpc);
                 }
 
                 this.startReader();
             })
-            .catch(() => {
-                // TODO: error all outstanding RPCs
-                // TODO: consider how we stop new RPCs getting stuck too
-                console.error("TODO");
+            .catch((reason) => {
+                for (const value of this.outstanding.values()) {
+                    value.reject(reason);
+                }
             });
     }
 
@@ -110,7 +110,7 @@ export class GoatTransport implements Transport {
             rpcReject(req.signal.reason);
         });
 
-        this.outstanding[id] = rpcResolve;
+        this.outstanding.set(id, { resolve: rpcResolve, reject: rpcReject });
         try {
             await this.channel.write(
                 new Rpc({
@@ -128,7 +128,7 @@ export class GoatTransport implements Transport {
             ret = await rpcPromise;
         }
         finally {
-            delete (this.outstanding[id]);
+            this.outstanding.delete(id);
         }
 
         if (ret.status && ret.status?.code != 0) {
@@ -165,18 +165,18 @@ export class GoatTransport implements Transport {
             method: methodName(req),
             headers: headersToRpcHeaders(req.header),
         });
+        const notifyAbort = () => outputIterable.write(new Error(req.signal.reason));
         const cleanup = () => {
-            delete (this.outstanding[id]);
+            this.outstanding.delete(id);
             outputIterable.close();
+            req.signal.removeEventListener("abort", notifyAbort);
         };
 
         req.signal.throwIfAborted();
-        req.signal.addEventListener("abort", () => {
-            outputIterable.write(new Error(req.signal.reason));
-        });
+        req.signal.addEventListener("abort", notifyAbort);
 
         // Configure how we deal with responses first
-        this.outstanding[id] = outputIterable.write;
+        this.outstanding.set(id, { resolve: outputIterable.write, reject: outputIterable.write });
 
         try {
             // Bidirection streams uniquely need a kick to start streaming, to allow the server
