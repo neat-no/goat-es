@@ -1,8 +1,8 @@
 import { Code, createPromiseClient } from "@connectrpc/connect";
 import { createAsyncIterable } from "@connectrpc/connect/protocol";
-import { TestService } from "gen/test_connect";
-import { Msg } from "gen/test_pb";
-import { Body, RequestHeader, ResponseStatus, Rpc } from "gen/wrapped_pb";
+import { TestService } from "gen/testproto/test_connect";
+import { Msg } from "gen/testproto/test_pb";
+import { Body, RequestHeader, ResponseStatus, Rpc } from "gen/goatorepo/rpc_pb";
 import { GoatTransport } from "goat";
 import { vi } from "vitest";
 
@@ -35,12 +35,10 @@ const newFifoMockReadWrite = function () {
 
     vi.mocked(mockRpcReadWrite.write).mockImplementation(rpc => {
         fifo.push(rpc);
-        console.log(`write ${JSON.stringify(rpc)}`);
         return Promise.resolve();
     });
     vi.mocked(mockRpcReadWrite.read).mockImplementation(async () => {
         const rpc = await fifo.pop();
-        console.log(`read ${JSON.stringify(rpc)}`);
         return Promise.resolve(rpc);
     });
     return mockRpcReadWrite;

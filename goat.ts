@@ -1,6 +1,6 @@
-import { KeyValue, RequestHeader, Rpc } from "./gen/wrapped_pb";
-import { Message, AnyMessage, ServiceType, MethodInfo, PartialMessage, MethodKind, Method } from "@bufbuild/protobuf";
-import { ContextValues, createContextValues, Transport, StreamResponse, UnaryRequest, UnaryResponse, ConnectError, StreamRequest, Code } from "@connectrpc/connect";
+import { KeyValue, RequestHeader, Rpc } from "./gen/goatorepo/rpc_pb";
+import { Message, AnyMessage, ServiceType, MethodInfo, PartialMessage, MethodKind } from "@bufbuild/protobuf";
+import { ContextValues, createContextValues, Transport, StreamResponse, UnaryRequest, UnaryResponse, ConnectError, StreamRequest } from "@connectrpc/connect";
 import { runUnaryCall, runStreamingCall, createMethodSerializationLookup, createWritableIterable, pipe } from "@connectrpc/connect/protocol";
 
 export interface RpcReadWriter {
@@ -89,7 +89,7 @@ export class GoatTransport implements Transport {
         if (this.readError) {
             throw(new Error(this.readError));
         }
-        
+
         return runStreamingCall({
             interceptors: [],
             signal: signal,
