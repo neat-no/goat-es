@@ -204,17 +204,13 @@ export class GoatTransport implements Transport {
         });
 
         try {
-            // Bidirection streams uniquely need a kick to start streaming, to allow the server
-            // to send us responses before we send any client data. This isn't needed for other
-            // cases as we're guaranteed to have client data to send.
-            if (req.method.kind == MethodKind.BiDiStreaming) {
-                await this.channel.write(
-                    new Rpc({
-                        id: BigInt(id),
-                        header: requestHeader,
-                    }),
-                );
-            }
+            // Streaming RPCs are always started with an explicit message which contains no body.
+            await this.channel.write(
+                new Rpc({
+                    id: BigInt(id),
+                    header: requestHeader,
+                }),
+            );
 
             // Start an async operation to stream our messages. In the case of a ServerStream,
             // there will just be a single message to upload. In other cases there can be many.
