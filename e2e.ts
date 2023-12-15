@@ -5,6 +5,7 @@ import WebSocket from 'ws';
 import { TestService } from 'gen/testproto/test_connect';
 import { Msg } from 'gen/testproto/test_pb';
 import { createPromiseClient } from '@connectrpc/connect';
+import { createAsyncIterable } from '@connectrpc/connect/protocol';
 
 
 class WebsocketRpcs implements RpcReadWriter {
@@ -43,15 +44,34 @@ async function main() {
     const rpcs = new WebsocketRpcs();
     await rpcs.connect();
 
-    const t = new GoatTransport(rpcs);
+    const t = new GoatTransport(rpcs); 
     const ts = createPromiseClient(TestService, t);
-    const val = await ts.unary(new Msg({ value: 21 }));
 
-    console.log(val);
+    if (false) {
+        const val = await ts.unary(new Msg({ value: 21 }));
+        console.log(val);
+    } else if (false) {
+        for await (const msg of ts.serverStream(new Msg({ value: 6 }))) {
+            console.log(msg.value);
+        }
+    } else if (false) {
+        const msg = await ts.clientStream(createAsyncIterable([
+            new Msg({value: 3}),
+            new Msg({value: 2}),
+            new Msg({value: 1}),
+        ]));
+        console.log(msg.value);
+    } else {
+        for await (const msg of ts.bidiStream(createAsyncIterable([new Msg({value: 5})]))) {
+            console.log(msg.value);
+        }
+    }
 }
 
 main().then(() => {
     console.log("Done")
+    process.exit(0)
 }).catch((err) => {
     console.error(err)
+    process.exit(1)
 })
