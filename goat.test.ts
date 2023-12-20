@@ -4,7 +4,7 @@ import { TestService } from "gen/testproto/test_connect";
 import { Msg } from "gen/testproto/test_pb";
 import { Body, RequestHeader, ResponseStatus, Rpc } from "gen/goatorepo/rpc_pb";
 import { GoatTransport } from "goat";
-import { vi } from "vitest"; 
+import { vi } from "vitest";
 
 class AwaitableQueue<T> {
     private q = Array<T>();
@@ -22,7 +22,7 @@ class AwaitableQueue<T> {
                 this.notify = r;
             });
         }
-        return this.q.shift()!!;
+        return this.q.shift()!!; 
     }
 }
 
