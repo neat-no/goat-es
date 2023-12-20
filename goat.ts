@@ -11,7 +11,7 @@ export interface RpcReadWriter {
 export class GoatTransport implements Transport {
     channel: RpcReadWriter;
     outstanding = new Map<number, { resolve: (rpc: Rpc) => void; reject: (reason: any) => void; }>();
-    // GOAT uses 64-bit ints (bigint) for IDs natively, but it's fine to use
+    // GOAT uses 64-bit ints for IDs natively, but it's fine to use
     // "number" as we're in charge of allocating them here, and there are enough
     // integers available to not overflow (Number.MAX_SAFE_INTEGER ~= 2^53)
     nextId: number = 0;
