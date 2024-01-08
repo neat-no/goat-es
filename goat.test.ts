@@ -25,7 +25,7 @@ const newFifoMockReadWrite = function () {
     return mockRpcReadWrite;
 };
 
-describe("unary RPC", () => {
+describe("unit: unary RPC", () => {
     it("performs simple requests/responses", async () => {
         const transport = new GoatTransport(newFifoMockReadWrite());
         const ts = createPromiseClient(TestService, transport);
@@ -175,7 +175,7 @@ describe("unary RPC", () => {
     });
 });
 
-describe("Streaming RPCs", () => {
+describe("unit: streaming RPCs", () => {
     enum State {
         NotStarted = 1,
         Started = 2,

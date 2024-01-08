@@ -9,7 +9,8 @@
         "gen": "./internal/.bin/buf generate --exclude-path=./node_modules",
         "format": "dprint fmt",
         "format:check": "dprint check",
-        "test": "vitest run"
+        "test": "vitest run -t 'unit:'",
+        "test:integration": "vitest run -t 'integration:'"
     },
     "author": "Avos Technologies",
     "license": "UNLICENSED",

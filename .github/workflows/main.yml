@@ -19,10 +19,17 @@ jobs:
         # https://nodejs.org/en/about/previous-releases
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: "true"
         token: ${{ secrets.PROTOREPO_ACCESS }}
+
+    - uses: actions/checkout@v4
+      with:
+        repository: avos-io/goat
+        submodules: "true"
+        token: ${{ secrets.PROTOREPO_ACCESS }} # `GH_PAT` is a secret that contains your PAT
+        path: goat-go
         
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v3
