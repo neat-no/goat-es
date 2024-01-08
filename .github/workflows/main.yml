@@ -84,9 +84,12 @@ jobs:
 
     - name: goat-go foo
       run: |
-        pushd ./goat && go run cmd/main.go & popd
+        cd goat
+        go run cmd/main.go & 
+        cd ..
         # Give some time for the build above to complete and the process to listen on a port
         sleep 2
-        pushd ./goat-es && npm run test:integration && popd
+        cd goat-es
+        npm run test:integration
         kill %1
       
