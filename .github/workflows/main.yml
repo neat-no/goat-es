@@ -37,6 +37,7 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
+        cache-dependency-path: goat-es/package-lock.json
 
     - name: Cache bootstrap files
       id: cache-bootstrap
