@@ -65,3 +65,22 @@ jobs:
     - name: test
       run: npm test
       working-directory: goat-es
+
+    - name: Setup Golang with cache
+      uses: magnetikonline/action-golang-cache@v3
+      with:
+        go-version: 1.19
+
+    - name: Install Task
+      uses: arduino/setup-task@v1
+
+    - name: Goat-Go bootstrap
+      working-directory: goat-go
+      run: |
+        scripts/bootstrap
+        task gen
+
+    - name: goat-go foo
+      working-directory: goat-go
+      run: go build cmd/...
+      
