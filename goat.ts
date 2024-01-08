@@ -1,5 +1,5 @@
 import { KeyValue, RequestHeader, Rpc } from "./gen/goatorepo/rpc_pb";
-import { Message, AnyMessage, ServiceType, MethodInfo, PartialMessage, MethodKind } from "@bufbuild/protobuf";
+import { Message, AnyMessage, ServiceType, MethodInfo, PartialMessage } from "@bufbuild/protobuf";
 import { ContextValues, createContextValues, Transport, StreamResponse, UnaryRequest, UnaryResponse, ConnectError, StreamRequest } from "@connectrpc/connect";
 import { runUnaryCall, runStreamingCall, createMethodSerializationLookup, createWritableIterable, pipe } from "@connectrpc/connect/protocol";
 

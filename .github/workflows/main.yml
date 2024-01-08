@@ -23,13 +23,14 @@ jobs:
       with:
         submodules: "true"
         token: ${{ secrets.PROTOREPO_ACCESS }}
+        path: goat-es
 
     - uses: actions/checkout@v4
       with:
         repository: avos-io/goat
         submodules: "true"
         token: ${{ secrets.PROTOREPO_ACCESS }} # `GH_PAT` is a secret that contains your PAT
-        path: goat-go
+        path: goat
         
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v3
@@ -38,6 +39,7 @@ jobs:
         cache: 'npm'
 
     - name: Cache bootstrap files
+      working-directory: goat-es
       id: cache-bootstrap
       uses: actions/cache@v3
       with:
@@ -46,9 +48,20 @@ jobs:
           internal/dprint
         key: ${{ runner.os }}-bootstrap
     
-    - run: npm ci
-    - run: npm run bootstrap
-    - run: npm run gen
-    - run: npm run eslint
-    - run: npm run format:check
-    - run: npm test
+    - name: npm + deps + code gen
+      working-directory: goat-es
+      run: |
+        npm ci
+        npm run bootstrap
+        npm run gen
+
+    - name: lint
+      working-directory: goat-es
+      run: |
+        npm run eslint
+        npm run format:check
+        npm run tsc
+
+    - name: test
+      run: npm test
+      working-directory: goat-es
