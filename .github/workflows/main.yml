@@ -75,12 +75,12 @@ jobs:
       uses: arduino/setup-task@v1
 
     - name: Goat-Go bootstrap
-      working-directory: goat-go
+      working-directory: goat
       run: |
         scripts/bootstrap
         task gen
 
     - name: goat-go foo
-      working-directory: goat-go
+      working-directory: goat
       run: go build cmd/...
       
