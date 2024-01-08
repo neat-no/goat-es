@@ -16,4 +16,4 @@ export class AwaitableQueue<T> {
         }
         return this.q.shift()!;
     }
-};
+}
