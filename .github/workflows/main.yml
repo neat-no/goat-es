@@ -19,13 +19,15 @@ jobs:
         # https://nodejs.org/en/about/previous-releases
 
     steps:
-    - uses: actions/checkout@v4
+    - name: checkout goat-es
+      uses: actions/checkout@v4
       with:
         submodules: "true"
         token: ${{ secrets.PROTOREPO_ACCESS }}
         path: goat-es
 
-    - uses: actions/checkout@v4
+    - name: checkout goat
+      uses: actions/checkout@v4
       with:
         repository: avos-io/goat
         submodules: "true"
@@ -81,6 +83,10 @@ jobs:
         task gen
 
     - name: goat-go foo
-      working-directory: goat
-      run: go build cmd/...
+      run: |
+        pushd ./goat && go run cmd/main.go & popd
+        # Give some time for the build above to complete and the process to listen on a port
+        sleep 2
+        pushd ./goat-es && npm run test:integration && popd
+        kill %1
       
