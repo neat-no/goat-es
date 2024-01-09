@@ -46,7 +46,7 @@ class WebsocketRpcs implements RpcReadWriter {
     async disconnect(): Promise<void> {
         await new Promise<void>(res => {
             this.ws.on("close", res);
-            this.ws.close();
+            this.ws.close(1000, "ok");
         });
     }
 
@@ -83,6 +83,8 @@ describe("integration: e2e", () => {
 
         const val = await ts.unary(new Msg({ value: 21 }));
         expect(val.value).toBe(42);
+
+        await rpcs.disconnect();
     });
 
     it("unary has trailers", async () => {
@@ -122,6 +124,8 @@ describe("integration: e2e", () => {
         const arr = await fromAsync(ts.serverStream(new Msg({ value: 6 })));
 
         expect(arr.map(m => m.value)).toStrictEqual([0, 1, 2, 3, 4, 5]);
+
+        await rpcs.disconnect();
     });
 
     it("performs client stream", async () => {
@@ -138,6 +142,8 @@ describe("integration: e2e", () => {
         ]));
 
         expect(msg.value).toBe(6);
+
+        await rpcs.disconnect();
     });
 
     it("performs bidir stream", async () => {
@@ -152,5 +158,7 @@ describe("integration: e2e", () => {
         )));
 
         expect(arr.map(m => m.value)).toStrictEqual([0, 1, 2, 0]);
+
+        await rpcs.disconnect();
     });
 });
