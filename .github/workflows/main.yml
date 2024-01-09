@@ -1,6 +1,3 @@
-# This workflow will do a clean installation of node dependencies, cache/restore them, build the source code and run tests across different versions of node
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-nodejs
-
 name: main
 
 on:
@@ -31,7 +28,7 @@ jobs:
       with:
         repository: avos-io/goat
         submodules: "true"
-        token: ${{ secrets.PROTOREPO_ACCESS }} # `GH_PAT` is a secret that contains your PAT
+        token: ${{ secrets.PROTOREPO_ACCESS }}
         path: goat
         ref: 'sam/e2e'
         
@@ -65,7 +62,7 @@ jobs:
         npm run format:check
         npm run tsc
 
-    - name: test
+    - name: unit tests
       run: npm test
       working-directory: goat-es
 
@@ -83,13 +80,13 @@ jobs:
         scripts/bootstrap
         task gen
 
-    - name: goat-go foo
+    - name: integration tests
       run: |
         cd goat
         go run cmd/main.go localhost:9043 & 
         cd ..
         # Give some time for the build above to complete and the process to listen on a port
-        sleep 2
+        while ! nc -z localhost 9043; do sleep 0.1; done
         cd goat-es
         E2E_TEST_ADDR=ws://localhost:9043/test npm run test:integration
         kill %1
