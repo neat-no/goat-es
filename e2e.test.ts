@@ -85,6 +85,33 @@ describe("integration: e2e", () => {
         expect(val.value).toBe(42);
     });
 
+    it("unary has trailers", async () => {
+        const rpcs = new WebsocketRpcs(e2e_test_addr);
+        await rpcs.connect();
+
+        const transport = new GoatTransport(rpcs);
+        const ts = createPromiseClient(TestService, transport);
+        var trailerCount = 0, headerCount = 0;
+
+        const ret = await ts.unary(new Msg({ value: 123 }), {
+            onHeader: headers => {
+                expect(headers.get("foo")).toBe("baz");
+                headerCount++;
+            },
+            onTrailer: trailers => {
+                expect(trailers.get("timestamp")).toContain(`${new Date().getFullYear()}-`);
+                expect(trailers.get("foo")).toBe("bar");
+                expect(trailers.get("input")).toBe("123");
+                trailerCount++;
+            },
+        });
+        expect(ret.value).toBe(246);
+        expect(headerCount).toBe(1);
+        expect(trailerCount).toBe(1);
+
+        await rpcs.disconnect();
+    });
+
     it("performs server stream", async () => {
         const rpcs = new WebsocketRpcs(e2e_test_addr);
         await rpcs.connect();
