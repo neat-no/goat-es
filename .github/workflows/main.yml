@@ -83,7 +83,7 @@ jobs:
     - name: integration tests
       run: |
         cd goat
-        go run cmd/main.go localhost:9043 & 
+        go run cmd/e2e-websocket-test/main.go localhost:9043 & 
         cd ..
         # Give some time for the build above to complete and the process to listen on a port
         while ! nc -z localhost 9043; do sleep 0.1; done
