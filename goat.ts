@@ -10,6 +10,8 @@ export interface RpcReadWriter {
 
 export class GoatTransport implements Transport {
     channel: RpcReadWriter;
+    destination?: string;
+    source?: string;
     outstanding = new Map<number, { resolve: (rpc: Rpc) => void; reject: (reason: any) => void; }>();
     // GOAT uses 64-bit ints (bigint) for IDs natively, but it's fine to use
     // "number" as we're in charge of allocating them here, and there are enough
@@ -17,8 +19,10 @@ export class GoatTransport implements Transport {
     nextId: number = 0;
     readError: any = undefined;
 
-    constructor(ch: RpcReadWriter) {
+    constructor(ch: RpcReadWriter, destinationName?: string, sourceName?: string) {
         this.channel = ch;
+        this.destination = destinationName;
+        this.source = sourceName;
 
         this.startReader();
     }
@@ -129,6 +133,8 @@ export class GoatTransport implements Transport {
                     header: {
                         method: methodName(req),
                         headers: headersToRpcHeaders(req.header),
+                        destination: this.destination,
+                        source: this.source,
                     },
                     body: {
                         data: serdes.getI(true).serialize(req.message),
@@ -175,6 +181,8 @@ export class GoatTransport implements Transport {
         const requestHeader = new RequestHeader({
             method: methodName(req),
             headers: headersToRpcHeaders(req.header),
+            destination: this.destination,
+            source: this.source,
         });
         const notifyAbort = () => {
             // Note when we write to outputIterable in a callback like this outside of an async
