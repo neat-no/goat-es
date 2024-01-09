@@ -86,11 +86,11 @@ jobs:
     - name: goat-go foo
       run: |
         cd goat
-        go run cmd/main.go & 
+        go run cmd/main.go localhost:9043 & 
         cd ..
         # Give some time for the build above to complete and the process to listen on a port
         sleep 2
         cd goat-es
-        npm run test:integration
+        E2E_TEST_ADDR=ws://localhost:9043/test npm run test:integration
         kill %1
       
