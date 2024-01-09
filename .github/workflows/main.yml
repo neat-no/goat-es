@@ -33,6 +33,7 @@ jobs:
         submodules: "true"
         token: ${{ secrets.PROTOREPO_ACCESS }} # `GH_PAT` is a secret that contains your PAT
         path: goat
+        ref: 'sam/e2e'
         
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v3
