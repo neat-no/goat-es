@@ -1,6 +1,3 @@
-# This workflow will do a clean installation of node dependencies, cache/restore them, build the source code and run tests across different versions of node
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-nodejs
-
 name: main
 
 on:
@@ -19,16 +16,28 @@ jobs:
         # https://nodejs.org/en/about/previous-releases
 
     steps:
-    - uses: actions/checkout@v3
+    - name: checkout goat-es
+      uses: actions/checkout@v4
       with:
         submodules: "true"
         token: ${{ secrets.PROTOREPO_ACCESS }}
+        path: goat-es
+
+    - name: checkout goat
+      uses: actions/checkout@v4
+      with:
+        repository: avos-io/goat
+        submodules: "true"
+        token: ${{ secrets.PROTOREPO_ACCESS }}
+        path: goat
+        ref: 'sam/e2e'
         
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v3
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
+        cache-dependency-path: goat-es/package-lock.json
 
     - name: Cache bootstrap files
       id: cache-bootstrap
@@ -39,9 +48,46 @@ jobs:
           internal/dprint
         key: ${{ runner.os }}-bootstrap
     
-    - run: npm ci
-    - run: npm run bootstrap
-    - run: npm run gen
-    - run: npm run eslint
-    - run: npm run format:check
-    - run: npm test
+    - name: npm + deps + code gen
+      working-directory: goat-es
+      run: |
+        npm ci
+        npm run bootstrap
+        npm run gen
+
+    - name: lint
+      working-directory: goat-es
+      run: |
+        npm run eslint
+        npm run format:check
+        npm run tsc
+
+    - name: unit tests
+      run: npm test
+      working-directory: goat-es
+
+    - name: Setup Golang with cache
+      uses: magnetikonline/action-golang-cache@v3
+      with:
+        go-version: 1.19
+
+    - name: Install Task
+      uses: arduino/setup-task@v1
+
+    - name: Goat-Go bootstrap
+      working-directory: goat
+      run: |
+        scripts/bootstrap
+        task gen
+
+    - name: integration tests
+      run: |
+        cd goat
+        go run cmd/e2e-websocket-test/main.go localhost:9043 & 
+        cd ..
+        # Give some time for the build above to complete and the process to listen on a port
+        while ! nc -z localhost 9043; do sleep 0.1; done
+        cd goat-es
+        E2E_TEST_ADDR=ws://localhost:9043/test npm run test:integration
+        kill %1
+      

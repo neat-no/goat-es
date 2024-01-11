@@ -6,7 +6,7 @@
     "newLineKind": "auto",
     "useTabs": false,
     "typescript": {
-        "newLineKind": "crlf",
+        "newLineKind": "lf",
         "semiColons": "always",
         "quoteStyle": "preferDouble",
         "quoteProps": "consistent",
