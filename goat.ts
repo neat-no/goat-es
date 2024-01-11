@@ -3,6 +3,8 @@ import { Message, AnyMessage, ServiceType, MethodInfo, PartialMessage } from "@b
 import { ContextValues, createContextValues, Transport, StreamResponse, UnaryRequest, UnaryResponse, ConnectError, StreamRequest } from "@connectrpc/connect";
 import { runUnaryCall, runStreamingCall, createMethodSerializationLookup, createWritableIterable, pipe } from "@connectrpc/connect/protocol";
 
+export { Rpc };
+
 export interface RpcReadWriter {
     read(): Promise<Rpc>;
     write(rpc: Rpc): Promise<void>;

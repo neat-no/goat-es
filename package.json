@@ -2,7 +2,7 @@
     "name": "goat-es",
     "version": "1.0.0",
     "description": "GOAT in ECMAScript",
-    "main": "index.js",
+    "main": "goat.ts",
     "scripts": {
         "bootstrap": "bash internal/bootstrap.sh",
         "eslint": "eslint",
