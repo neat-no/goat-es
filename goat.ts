@@ -2,8 +2,9 @@ import { KeyValue, RequestHeader, Rpc } from "./gen/goatorepo/rpc_pb";
 import { Message, AnyMessage, ServiceType, MethodInfo, PartialMessage } from "@bufbuild/protobuf";
 import { ContextValues, createContextValues, Transport, StreamResponse, UnaryRequest, UnaryResponse, ConnectError, StreamRequest } from "@connectrpc/connect";
 import { runUnaryCall, runStreamingCall, createMethodSerializationLookup, createWritableIterable, pipe } from "@connectrpc/connect/protocol";
+import { AwaitableQueue } from "./util";
 
-export { Rpc };
+export { Rpc, AwaitableQueue };
 
 export interface RpcReadWriter {
     read(): Promise<Rpc>;
