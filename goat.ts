@@ -1,6 +1,6 @@
 import { KeyValue, RequestHeader, Rpc } from "./gen/goatorepo/rpc_pb";
 import { Message, AnyMessage, ServiceType, MethodInfo, PartialMessage } from "@bufbuild/protobuf";
-import { ContextValues, createContextValues, Transport, StreamResponse, UnaryRequest, UnaryResponse, ConnectError, StreamRequest } from "@connectrpc/connect";
+import { ContextValues, createContextValues, Transport, StreamResponse, UnaryRequest, UnaryResponse, ConnectError, StreamRequest, Interceptor } from "@connectrpc/connect";
 import { runUnaryCall, runStreamingCall, createMethodSerializationLookup, createWritableIterable, pipe } from "@connectrpc/connect/protocol";
 import { AwaitableQueue } from "./util";
 
@@ -9,6 +9,12 @@ export { Rpc, AwaitableQueue };
 export interface RpcReadWriter {
     read(): Promise<Rpc>;
     write(rpc: Rpc): Promise<void>;
+}
+
+export interface GoatConfig {
+    destinationName?: string;
+    sourceName?: string;
+    interceptors?: Interceptor[]
 }
 
 export class GoatTransport implements Transport {
@@ -21,11 +27,13 @@ export class GoatTransport implements Transport {
     // integers available to not overflow (Number.MAX_SAFE_INTEGER ~= 2^53)
     nextId: number = 0;
     readError: any = undefined;
+    interceptors: Interceptor[] = [];
 
-    constructor(ch: RpcReadWriter, destinationName?: string, sourceName?: string) {
+    constructor(ch: RpcReadWriter, cfg?: GoatConfig) {
         this.channel = ch;
-        this.destination = destinationName;
-        this.source = sourceName;
+        this.destination = cfg?.destinationName;
+        this.source = cfg?.sourceName;
+        this.interceptors = cfg?.interceptors || [];
 
         this.startReader();
     }
@@ -65,7 +73,7 @@ export class GoatTransport implements Transport {
         }
 
         return runUnaryCall({
-            interceptors: [],
+            interceptors: this.interceptors,
             signal: signal,
             timeoutMs: timeoutMs,
             req: {
@@ -98,7 +106,7 @@ export class GoatTransport implements Transport {
         }
 
         return runStreamingCall({
-            interceptors: [],
+            interceptors: this.interceptors,
             signal: signal,
             timeoutMs: timeoutMs,
             req: {

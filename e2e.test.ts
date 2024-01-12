@@ -78,7 +78,7 @@ describe("integration: e2e", () => {
         const rpcs = new WebsocketRpcs(e2e_test_addr);
         await rpcs.connect();
 
-        const t = new GoatTransport(rpcs, "e2e", "source");
+        const t = new GoatTransport(rpcs, { destinationName: "e2e", sourceName: "source" });
         const ts = createPromiseClient(TestService, t);
 
         const val = await ts.unary(new Msg({ value: 21 }));
@@ -91,7 +91,7 @@ describe("integration: e2e", () => {
         const rpcs = new WebsocketRpcs(e2e_test_addr);
         await rpcs.connect();
 
-        const transport = new GoatTransport(rpcs, "e2e");
+        const transport = new GoatTransport(rpcs, { destinationName: "e2e" });
         const ts = createPromiseClient(TestService, transport);
         var trailerCount = 0, headerCount = 0;
 
@@ -118,7 +118,7 @@ describe("integration: e2e", () => {
         const rpcs = new WebsocketRpcs(e2e_test_addr);
         await rpcs.connect();
 
-        const t = new GoatTransport(rpcs, "e2e");
+        const t = new GoatTransport(rpcs, { destinationName: "e2e" });
         const ts = createPromiseClient(TestService, t);
 
         const arr = await fromAsync(ts.serverStream(new Msg({ value: 6 })));
@@ -132,7 +132,7 @@ describe("integration: e2e", () => {
         const rpcs = new WebsocketRpcs(e2e_test_addr);
         await rpcs.connect();
 
-        const t = new GoatTransport(rpcs, "e2e");
+        const t = new GoatTransport(rpcs, { destinationName: "e2e" });
         const ts = createPromiseClient(TestService, t);
 
         const msg = await ts.clientStream(createAsyncIterable([
@@ -150,7 +150,7 @@ describe("integration: e2e", () => {
         const rpcs = new WebsocketRpcs(e2e_test_addr);
         await rpcs.connect();
 
-        const t = new GoatTransport(rpcs, "e2e");
+        const t = new GoatTransport(rpcs, { destinationName: "e2e" });
         const ts = createPromiseClient(TestService, t);
 
         const arr = await fromAsync(ts.bidiStream(createAsyncIterable(
