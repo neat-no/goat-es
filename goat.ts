@@ -14,7 +14,7 @@ export interface RpcReadWriter {
 export interface GoatConfig {
     destinationName?: string;
     sourceName?: string;
-    interceptors?: Interceptor[]
+    interceptors?: Interceptor[];
 }
 
 export class GoatTransport implements Transport {
