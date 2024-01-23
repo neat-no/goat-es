@@ -14,7 +14,7 @@
         "test:integration": "vitest run -t 'integration:'"
     },
     "author": "Avos Technologies",
-    "license": "UNLICENSED",
+    "license": "MIT",
     "dependencies": {
         "@bufbuild/buf": "^1.28.1",
         "@bufbuild/protobuf": "^1.5.0",
