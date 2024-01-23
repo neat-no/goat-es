@@ -21,3 +21,5 @@ const transport = new GoatTransport(underlying);
 const ts = createPromiseClient(TestService, transport);
 await ts.unary(new Msg({ value: i }));
 ```
+
+There is a sample underlying implementation of WebSockets in `e2e.test.ts`.
