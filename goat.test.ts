@@ -82,7 +82,7 @@ describe("unit: unary RPC", () => {
         const transport = new GoatTransport(readRpcErr);
         const ts = createPromiseClient(TestService, transport);
 
-        expect(async () => {
+        await expect(async () => {
             await ts.unary({});
         }).rejects.toThrow("Yo, you passed an invalid argument dawg");
     });
@@ -92,7 +92,7 @@ describe("unit: unary RPC", () => {
         const ts = createPromiseClient(TestService, transport);
         const signalController: AbortController = new AbortController();
 
-        expect(async () => {
+        await expect(async () => {
             signalController.abort();
             await ts.unary(new Msg({ value: 1 }), { signal: signalController.signal });
         }).rejects.toThrow("This operation was aborted");
@@ -110,7 +110,7 @@ describe("unit: unary RPC", () => {
         const ts = createPromiseClient(TestService, transport);
         const signalController: AbortController = new AbortController();
 
-        expect(async () => {
+        await expect(async () => {
             const rpc = ts.unary(new Msg({ value: 1 }), { signal: signalController.signal });
             signalController.abort();
             await rpc;
@@ -131,16 +131,47 @@ describe("unit: unary RPC", () => {
         const transport = new GoatTransport(mockRrw);
         const ts = createPromiseClient(TestService, transport);
 
-        expect(async () => {
+        await expect(async () => {
             const rpc = ts.unary(new Msg({ value: 1 }));
             readRejected!(new Error("Read error"));
             await rpc;
         }).rejects.toThrow("Read error");
 
         // Now that we're in the read error state, any RPC attempts should immediately fail
-        expect(async () => {
+        await expect(async () => {
             await ts.unary(new Msg({ value: 1 }));
         }).rejects.toThrow("Read error");
+    });
+
+    it("handles reset after read error", async () => {
+        const mockRrw = newFifoMockReadWrite();
+        var readRejected: ((reason: any) => void) | undefined = undefined;
+
+        mockRrw.read.mockImplementation(() => {
+            // Don't resolve, just block indefinitely
+            return new Promise<Rpc>((_, reject) => {
+                readRejected = reject;
+            });
+        });
+
+        const transport = new GoatTransport(mockRrw);
+        const ts = createPromiseClient(TestService, transport);
+
+        await expect(async () => {
+            const rpc = ts.unary(new Msg({ value: 1 }));
+            readRejected!(new Error("Read error"));
+            await rpc;
+        }).rejects.toThrow("Read error");
+
+        // Now that we're in the read error state, any RPC attempts should immediately fail
+        await expect(async () => {
+            await ts.unary(new Msg({ value: 1 }));
+        }).rejects.toThrow("Read error");
+
+        transport.reset(newFifoMockReadWrite());
+
+        const ret = await ts.unary(new Msg({ value: 51 }));
+        expect(ret.value).toBe(51);
     });
 
     it("sends headers", async () => {
@@ -337,7 +368,7 @@ describe("unit: streaming RPCs", () => {
         const transport = new GoatTransport(mock);
         const ts = createPromiseClient(TestService, transport);
 
-        expect(async () => {
+        await expect(async () => {
             await ts.clientStream(createAsyncIterable([
                 new Msg({ value: 1 }),
                 new Msg({ value: 3 }),
@@ -355,7 +386,7 @@ describe("unit: streaming RPCs", () => {
         const ts = createPromiseClient(TestService, transport);
         const signalController: AbortController = new AbortController();
 
-        expect(async () => {
+        await expect(async () => {
             await ts.clientStream(
                 createAsyncIterable([
                     new Msg({ value: 1 }),
@@ -363,7 +394,7 @@ describe("unit: streaming RPCs", () => {
                 ]),
                 { signal: signalController.signal },
             );
-        }).rejects.toThrow("AbortError: This operation was aborted");
+        }).rejects.toThrow("This operation was aborted");
     });
 
     it("handles client stream timeout", async () => {
@@ -376,7 +407,7 @@ describe("unit: streaming RPCs", () => {
         const transport = new GoatTransport(mock);
         const ts = createPromiseClient(TestService, transport);
 
-        expect(async () => {
+        await expect(async () => {
             await ts.clientStream(
                 createAsyncIterable([
                     new Msg({ value: 1 }),

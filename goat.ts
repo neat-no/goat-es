@@ -38,7 +38,21 @@ export class GoatTransport implements Transport {
         this.startReader();
     }
 
+    reset(newChannel: RpcReadWriter) {
+        for (const value of this.outstanding.values()) {
+            value.reject(new Error("reset"));
+        }
+        this.outstanding.clear();
+
+        this.channel = newChannel;
+        this.readError = undefined;
+
+        this.startReader();
+    }
+
     private startReader(): void {
+        const initialChannel = this.channel;
+
         this.channel.read()
             .then(rpc => {
                 const id = Number(rpc.id);
@@ -51,11 +65,17 @@ export class GoatTransport implements Transport {
                 this.startReader();
             })
             .catch(reason => {
+                if (this.channel != initialChannel) {
+                    // We've had .reset() called before this -- ignore the error.
+                    return;
+                }
+
                 this.readError = reason;
 
                 for (const value of this.outstanding.values()) {
                     value.reject(reason);
                 }
+                this.outstanding.clear();
             });
     }
 
@@ -69,7 +89,7 @@ export class GoatTransport implements Transport {
         contextValues?: ContextValues | undefined,
     ): Promise<UnaryResponse<I, O>> {
         if (this.readError) {
-            throw (new Error(this.readError));
+            throw new Error(this.readError);
         }
 
         return runUnaryCall({
