@@ -201,7 +201,11 @@ export class GoatTransport implements Transport {
             // and the consumer has stopped reading from our output. So be sure to catch() and
             // ignore any errors in such a case; else we're left with dangling promises that at
             // the very least cause test failures due to an "Unhandled Rejection".
-            outputIterable.write(new Error(req.signal.reason)).catch(() => {});
+            if (req.signal.reason instanceof Error || req.signal.reason instanceof DOMException) {
+                outputIterable.write(req.signal.reason).catch(() => {});
+            } else {
+                outputIterable.write(new DOMException(req.signal.reason, "AbortError")).catch(() => {});
+            }
         };
         const cleanup = () => {
             this.outstanding.delete(id);

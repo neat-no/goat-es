@@ -363,7 +363,7 @@ describe("unit: streaming RPCs", () => {
                 ]),
                 { signal: signalController.signal },
             );
-        }).rejects.toThrow("This operation was aborted");
+        }).rejects.toThrow("AbortError: This operation was aborted");
     });
 
     it("handles client stream timeout", async () => {
