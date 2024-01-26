@@ -223,7 +223,8 @@ export class GoatTransport implements Transport {
             // the very least cause test failures due to an "Unhandled Rejection".
             if (req.signal.reason instanceof Error || req.signal.reason instanceof DOMException) {
                 outputIterable.write(req.signal.reason).catch(() => {});
-            } else {
+            }
+            else {
                 outputIterable.write(new DOMException(req.signal.reason, "AbortError")).catch(() => {});
             }
         };

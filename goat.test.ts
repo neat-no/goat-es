@@ -177,7 +177,7 @@ describe("unit: unary RPC", () => {
     it("handles reset of ongoing RPCs", async () => {
         const mockRrw = newFifoMockReadWrite();
         let readHasStartedResolve: (value: void | PromiseLike<void>) => void;
-        const readHasStarted = new Promise<void>((res) => {
+        const readHasStarted = new Promise<void>(res => {
             readHasStartedResolve = res;
         });
 
