@@ -1,4 +1,4 @@
-import { Code, ConnectError, createPromiseClient } from "@connectrpc/connect";
+import { Code, createPromiseClient } from "@connectrpc/connect";
 import { createAsyncIterable } from "@connectrpc/connect/protocol";
 import { TestService } from "gen/testproto/test_connect";
 import { Msg } from "gen/testproto/test_pb";
