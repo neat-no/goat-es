@@ -1,4 +1,4 @@
-import { Code, createPromiseClient } from "@connectrpc/connect";
+import { Code, ConnectError, createPromiseClient } from "@connectrpc/connect";
 import { createAsyncIterable } from "@connectrpc/connect/protocol";
 import { TestService } from "gen/testproto/test_connect";
 import { Msg } from "gen/testproto/test_pb";
@@ -169,6 +169,36 @@ describe("unit: unary RPC", () => {
         }).rejects.toThrow("Read error");
 
         transport.reset(newFifoMockReadWrite());
+
+        const ret = await ts.unary(new Msg({ value: 51 }));
+        expect(ret.value).toBe(51);
+    });
+
+    it("handles reset of ongoing RPCs", async () => {
+        const mockRrw = newFifoMockReadWrite();
+        let readHasStartedResolve: (value: void | PromiseLike<void>) => void;
+        const readHasStarted = new Promise<void>((res) => {
+            readHasStartedResolve = res;
+        });
+
+        mockRrw.read.mockImplementation(() => {
+            readHasStartedResolve();
+            // Don't resolve, just block indefinitely
+            return new Promise<Rpc>(() => {});
+        });
+
+        const transport = new GoatTransport(mockRrw);
+        const ts = createPromiseClient(TestService, transport);
+
+        const initialRpc = expect(async () => {
+            await ts.unary(new Msg({ value: 1 }));
+        }).rejects.toThrow("[aborted] reset");
+
+        await readHasStarted;
+
+        transport.reset(newFifoMockReadWrite());
+
+        await initialRpc;
 
         const ret = await ts.unary(new Msg({ value: 51 }));
         expect(ret.value).toBe(51);

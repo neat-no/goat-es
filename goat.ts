@@ -1,6 +1,6 @@
 import { KeyValue, RequestHeader, Rpc } from "./gen/goatorepo/rpc_pb";
 import { Message, AnyMessage, ServiceType, MethodInfo, PartialMessage } from "@bufbuild/protobuf";
-import { ContextValues, createContextValues, Transport, StreamResponse, UnaryRequest, UnaryResponse, ConnectError, StreamRequest, Interceptor } from "@connectrpc/connect";
+import { Code, ContextValues, createContextValues, Transport, StreamResponse, UnaryRequest, UnaryResponse, ConnectError, StreamRequest, Interceptor } from "@connectrpc/connect";
 import { runUnaryCall, runStreamingCall, createMethodSerializationLookup, createWritableIterable, pipe } from "@connectrpc/connect/protocol";
 import { AwaitableQueue } from "./util";
 
@@ -38,9 +38,9 @@ export class GoatTransport implements Transport {
         this.startReader();
     }
 
-    reset(newChannel: RpcReadWriter) {
+    reset(newChannel: RpcReadWriter, reason?: any) {
         for (const value of this.outstanding.values()) {
-            value.reject(new Error("reset"));
+            value.reject(reason ?? new ConnectError("reset", Code.Aborted));
         }
         this.outstanding.clear();
 
