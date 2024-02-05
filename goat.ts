@@ -209,9 +209,15 @@ export class GoatTransport implements Transport {
         const serdes = createMethodSerializationLookup(req.method, undefined, undefined, { writeMaxBytes: 10000000, readMaxBytes: 10000000 });
         const id = this.nextId++;
         const outputIterable = createWritableIterable<Rpc | Error>();
-        const requestHeader = new RequestHeader({
+        const initialRequestHeader = new RequestHeader({
             method: methodName(req),
             headers: headersToRpcHeaders(req.header),
+            destination: this.destination,
+            source: this.source,
+        });
+        const requestHeader = new RequestHeader({
+            method: methodName(req),
+            // Doesn't include `headers` -- this is only sent in the initial message
             destination: this.destination,
             source: this.source,
         });
@@ -252,7 +258,7 @@ export class GoatTransport implements Transport {
             await this.channel.write(
                 new Rpc({
                     id: BigInt(id),
-                    header: requestHeader,
+                    header: initialRequestHeader,
                 }),
             );
 
