@@ -64,5 +64,5 @@ describe("unit: AwaitableQueue", () => {
 
         expect(q.length).toBe(1);
         expect(order).toStrictEqual([1, 2]);
-    })
+    });
 });
