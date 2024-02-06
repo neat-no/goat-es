@@ -78,6 +78,7 @@ describe("unit: unary RPC", () => {
             write: () => {
                 return Promise.resolve();
             },
+            done: () => {},
         };
 
         const transport = new GoatTransport(readRpcErr);
@@ -300,6 +301,8 @@ describe("unit: streaming RPCs", () => {
                     break;
             }
         }
+
+        done() {}
     }
 
     class MockServerStreamResponder {
@@ -346,6 +349,8 @@ describe("unit: streaming RPCs", () => {
                 }),
             );
         }
+
+        done() {}
     }
 
     class MockBidirStreamResponder {
@@ -389,6 +394,8 @@ describe("unit: streaming RPCs", () => {
                 }),
             );
         }
+
+        done() {}
     }
 
     it("handles client stream write error", async () => {
