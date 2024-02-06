@@ -57,6 +57,8 @@ class WebsocketRpcs implements RpcReadWriter {
     async write(rpc: Rpc): Promise<void> {
         this.ws.send(rpc.toBinary());
     }
+
+    done() {}
 }
 
 async function fromAsync<T>(iter: AsyncIterable<T>): Promise<T[]> {

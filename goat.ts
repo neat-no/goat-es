@@ -9,6 +9,7 @@ export { Rpc, AwaitableQueue };
 export interface RpcReadWriter {
     read(): Promise<Rpc>;
     write(rpc: Rpc): Promise<void>;
+    done(): void;
 }
 
 export interface GoatConfig {
@@ -44,10 +45,12 @@ export class GoatTransport implements Transport {
         }
         this.outstanding.clear();
 
+        const oldChannel = this.channel;
         this.channel = newChannel;
         this.readError = undefined;
 
         this.startReader();
+        oldChannel.done();
     }
 
     private startReader(): void {
