@@ -247,13 +247,26 @@ export class GoatTransport implements Transport {
             // The client then wants to abort this RPC before the server naturally finishes it.
             // How do we abort it?
             //
-            // GRPC docs: "When an application or runtime error occurs during an RPC a Status and Status-Message 
+            // GRPC docs: "When an application or runtime error occurs during an RPC a Status and Status-Message
             // are delivered in Trailers.
             // In some cases it is possible that the framing of the message stream has become corrupt and the RPC
-            // runtime will choose to use an RST_STREAM frame to indicate this state to its peer. RPC runtime 
-            // implementations should interpret RST_STREAM as immediate full-closure of the stream and should 
+            // runtime will choose to use an RST_STREAM frame to indicate this state to its peer. RPC runtime
+            // implementations should interpret RST_STREAM as immediate full-closure of the stream and should
             // propagate an error up to the calling application layer."
-            
+
+            // FIXME: in what cases do we actually need to send this message?
+            // I think it's *safe* to do so, but when *should* we?
+            this.channel.write(
+                new Rpc({
+                    id: BigInt(id),
+                    header: requestHeader,
+                    trailer: {},
+                    status: {
+                        code: Code.Aborted,
+                    },
+                }),
+            ).catch(() => {});
+
             req.signal.removeEventListener("abort", notifyAbort);
         };
 

@@ -538,20 +538,23 @@ describe("unit: streaming RPCs", () => {
         const signalController: AbortController = new AbortController();
 
         var finish: ((value: void | PromiseLike<void>) => void) | undefined;
-        const finishPromise = new Promise<void>((res) => {
+        const finishPromise = new Promise<void>(res => {
             finish = res;
         });
         expect(finish).toBeDefined();
 
         // Start the streaming RPC then block...
-        const ret = await ts.bidiStream((async function* () {
-            yield new Msg({ value: 77 });
-            await finishPromise;
+        const ret = await ts.bidiStream(
+            (async function* () {
+                yield new Msg({ value: 77 });
+                await finishPromise;
 
-            // XX: what happens if an exception is thrown in here?
-        })(), {
-            signal: signalController.signal
-        });
+                // XX: what happens if an exception is thrown in here?
+            })(),
+            {
+                signal: signalController.signal,
+            },
+        );
 
         for await (const msg of ret) {
             expect(msg.value).toBe(77);
@@ -566,8 +569,8 @@ describe("unit: streaming RPCs", () => {
                 count++;
             }
             expect(count).toBe(0);
-        }).rejects.toThrow("test abort")
-        
+        }).rejects.toThrow("test abort");
+
         // At this point our upload loop is stuck on "await finishPromise".
         // So finish that loop off, and run any outstanding work.
         if (finish) finish();
@@ -576,16 +579,75 @@ describe("unit: streaming RPCs", () => {
         // The last RPC should have "trailer" set.
         expect(mock.record.length).toBeGreaterThanOrEqual(1);
         const lastRpc = mock.record[mock.record.length - 1];
-        
+
         expect(lastRpc.body).not.toBeDefined();
         expect(lastRpc.trailer).toBeDefined();
     });
 
-    it("closes client stream on abort signal", async () => {
+    it("closes server stream on abort signal", async () => {
+        class MockInfiniteServerStreamResponder {
+            private q = new AwaitableQueue<Rpc>();
+            public record: Rpc[] = [];
 
+            async read() {
+                return this.q.pop();
+            }
+            async write(rpc: Rpc) {
+                this.record.push(rpc);
+
+                if (!rpc.body?.data && !rpc.trailer) {
+                    // Acknowledge the stream
+                    this.q.push(
+                        new Rpc({
+                            id: rpc.id,
+                            header: rpc.header,
+                        }),
+                    );
+                    return;
+                }
+
+                // Never send end-of-stream
+            }
+
+            done() {}
+        }
+
+        const mock = new MockInfiniteServerStreamResponder();
+        const transport = new GoatTransport(mock);
+        const ts = createPromiseClient(TestService, transport);
+        const signalController: AbortController = new AbortController();
+
+        const rpcPromise = expect(async () => {
+            for await (
+                const _resp of ts.serverStream(new Msg({ value: 3 }), {
+                    signal: signalController.signal,
+                })
+            ) {
+                // We'll be stuck now...
+            }
+        }).rejects.toThrow("This operation was aborted");
+
+        await vi.advanceTimersByTimeAsync(1000);
+
+        // Messages so far:
+        // - start stream
+        // - single message with body
+        // - end stream
+        expect(mock.record.length).toBe(3);
+        expect(mock.record[2].trailer).toBeDefined();
+        expect(mock.record[2].status).not.toBeDefined();
+
+        signalController.abort();
+
+        await rpcPromise;
+
+        // Now the abort should have resulted in an abort stream message
+        expect(mock.record.length).toBe(4);
+        expect(mock.record[3].trailer).toBeDefined();
+        expect(mock.record[3].status).toBeDefined();
+        expect(mock.record[3].status?.code).toBe(Code.Aborted);
     });
 
     it("handles exception in async iterable for upload", async () => {
-
     });
 });
