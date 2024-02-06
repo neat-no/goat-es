@@ -12,6 +12,7 @@ const newFifoMockReadWrite = function () {
     const mockRpcReadWrite = {
         read: vi.fn<[], Promise<Rpc>>(),
         write: vi.fn<[Rpc], Promise<void>>(),
+        done: vi.fn<[], void>(),
     };
 
     vi.mocked(mockRpcReadWrite.write).mockImplementation(rpc => {
