@@ -245,6 +245,14 @@ describe("unit: streaming RPCs", () => {
         Ended = 3,
     }
 
+    beforeEach(() => {
+        vi.useFakeTimers();
+    });
+    afterEach(() => {
+        vi.runAllTimers();
+        vi.useRealTimers();
+    });
+
     class MockClientStreamResponder {
         private state: State = State.NotStarted;
         private q = new AwaitableQueue<Rpc>();
@@ -355,11 +363,14 @@ describe("unit: streaming RPCs", () => {
 
     class MockBidirStreamResponder {
         private q = new AwaitableQueue<Rpc>();
+        public record: Rpc[] = [];
 
         async read() {
             return this.q.pop();
         }
         async write(rpc: Rpc) {
+            this.record.push(rpc);
+
             if (!rpc.body?.data && !rpc.trailer) {
                 // Acknowledge the stream
                 this.q.push(
@@ -445,7 +456,7 @@ describe("unit: streaming RPCs", () => {
         const transport = new GoatTransport(mock);
         const ts = createPromiseClient(TestService, transport);
 
-        await expect(async () => {
+        const p = expect(async () => {
             await ts.clientStream(
                 createAsyncIterable([
                     new Msg({ value: 1 }),
@@ -454,6 +465,12 @@ describe("unit: streaming RPCs", () => {
                 { timeoutMs: 2 },
             );
         }).rejects.toThrow("the operation timed out");
+
+        for (var i = 0; i < 10; i++) {
+            await vi.advanceTimersByTimeAsync(250);
+        }
+
+        await p;
     });
 
     it("performs client stream", async () => {
@@ -511,5 +528,64 @@ describe("unit: streaming RPCs", () => {
             count += msg.value;
         }
         expect(count).toBe(4);
+    });
+
+    it("closes stream on abort signal", async () => {
+        const mock = new MockBidirStreamResponder();
+
+        const transport = new GoatTransport(mock);
+        const ts = createPromiseClient(TestService, transport);
+        const signalController: AbortController = new AbortController();
+
+        var finish: ((value: void | PromiseLike<void>) => void) | undefined;
+        const finishPromise = new Promise<void>((res) => {
+            finish = res;
+        });
+        expect(finish).toBeDefined();
+
+        // Start the streaming RPC then block...
+        const ret = await ts.bidiStream((async function* () {
+            yield new Msg({ value: 77 });
+            await finishPromise;
+
+            // XX: what happens if an exception is thrown in here?
+        })(), {
+            signal: signalController.signal
+        });
+
+        for await (const msg of ret) {
+            expect(msg.value).toBe(77);
+            break;
+        }
+
+        signalController.abort("test abort");
+
+        expect(async () => {
+            var count = 0;
+            for await (const _ of ret) {
+                count++;
+            }
+            expect(count).toBe(0);
+        }).rejects.toThrow("test abort")
+        
+        // At this point our upload loop is stuck on "await finishPromise".
+        // So finish that loop off, and run any outstanding work.
+        if (finish) finish();
+        await vi.runAllTimersAsync();
+
+        // The last RPC should have "trailer" set.
+        expect(mock.record.length).toBeGreaterThanOrEqual(1);
+        const lastRpc = mock.record[mock.record.length - 1];
+        
+        expect(lastRpc.body).not.toBeDefined();
+        expect(lastRpc.trailer).toBeDefined();
+    });
+
+    it("closes client stream on abort signal", async () => {
+
+    });
+
+    it("handles exception in async iterable for upload", async () => {
+
     });
 });

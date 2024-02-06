@@ -240,6 +240,20 @@ export class GoatTransport implements Transport {
         const cleanup = () => {
             this.outstanding.delete(id);
             outputIterable.close();
+
+            // FIXME
+            //
+            // Consider first a server-streaming RPC. So the client has already send an "end of stream".
+            // The client then wants to abort this RPC before the server naturally finishes it.
+            // How do we abort it?
+            //
+            // GRPC docs: "When an application or runtime error occurs during an RPC a Status and Status-Message 
+            // are delivered in Trailers.
+            // In some cases it is possible that the framing of the message stream has become corrupt and the RPC
+            // runtime will choose to use an RST_STREAM frame to indicate this state to its peer. RPC runtime 
+            // implementations should interpret RST_STREAM as immediate full-closure of the stream and should 
+            // propagate an error up to the calling application layer."
+            
             req.signal.removeEventListener("abort", notifyAbort);
         };
 
@@ -291,6 +305,11 @@ export class GoatTransport implements Transport {
                     );
                 }
                 catch (err) {
+                    // We might get an exception here due to the client throwing one, so the
+                    // channel might be ok. If that's the case, we still need to write our
+                    // "end stream" message.
+                    // TODO: implement and test me.
+
                     reject(err);
                     return;
                 }
