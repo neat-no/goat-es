@@ -548,8 +548,6 @@ describe("unit: streaming RPCs", () => {
             (async function* () {
                 yield new Msg({ value: 77 });
                 await finishPromise;
-
-                // XX: what happens if an exception is thrown in here?
             })(),
             {
                 signal: signalController.signal,
@@ -649,5 +647,40 @@ describe("unit: streaming RPCs", () => {
     });
 
     it("handles exception in async iterable for upload", async () => {
+        const mock = new MockBidirStreamResponder();
+
+        const transport = new GoatTransport(mock);
+        const ts = createPromiseClient(TestService, transport);
+
+        // Start the streaming RPC then block...
+        const ret = await ts.bidiStream(
+            (async function* () {
+                yield new Msg({ value: 77 });
+                throw new Error("test error")
+            })());
+
+        var numReceived = 0;
+
+        await expect(async () => {
+            for await (const msg of ret) {
+                expect(msg.value).toBe(77);
+                numReceived++;
+            }
+        }).rejects.toThrow("test error")
+
+        expect(numReceived).toBe(1);
+
+        // At this point our upload loop is stuck on "await finishPromise".
+        // So finish that loop off, and run any outstanding work.
+        await vi.runAllTimersAsync();
+
+        // The last RPC should have "trailer" set.
+        expect(mock.record.length).toBeGreaterThanOrEqual(1);
+        const lastRpc = mock.record[mock.record.length - 1];
+
+        expect(lastRpc.body).not.toBeDefined();
+        expect(lastRpc.trailer).toBeDefined();
+        expect(lastRpc.status).toBeDefined();
+        expect(lastRpc.status?.code).toBe(Code.Aborted);
     });
 });
