@@ -656,8 +656,9 @@ describe("unit: streaming RPCs", () => {
         const ret = await ts.bidiStream(
             (async function* () {
                 yield new Msg({ value: 77 });
-                throw new Error("test error")
-            })());
+                throw new Error("test error");
+            })(),
+        );
 
         var numReceived = 0;
 
@@ -666,7 +667,7 @@ describe("unit: streaming RPCs", () => {
                 expect(msg.value).toBe(77);
                 numReceived++;
             }
-        }).rejects.toThrow("test error")
+        }).rejects.toThrow("test error");
 
         expect(numReceived).toBe(1);
 
