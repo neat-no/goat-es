@@ -237,15 +237,14 @@ export class GoatTransport implements Transport {
                 outputIterable.write(new DOMException(req.signal.reason, "AbortError")).catch(() => {});
             }
         };
+        var serverHasClosedStream = false;
+        var clientHasClosedStream = false;
         const cleanup = () => {
             this.outstanding.delete(id);
             outputIterable.close();
 
-            // FIXME
-            //
-            // Consider first a server-streaming RPC. So the client has already send an "end of stream".
-            // The client then wants to abort this RPC before the server naturally finishes it.
-            // How do we abort it?
+            // If, when we are cleaning up here, we have yet to fully finish the stream, ensure
+            // we send an abort message if at all possible (i.e. if the channel is working).
             //
             // GRPC docs: "When an application or runtime error occurs during an RPC a Status and Status-Message
             // are delivered in Trailers.
@@ -253,19 +252,18 @@ export class GoatTransport implements Transport {
             // runtime will choose to use an RST_STREAM frame to indicate this state to its peer. RPC runtime
             // implementations should interpret RST_STREAM as immediate full-closure of the stream and should
             // propagate an error up to the calling application layer."
-
-            // FIXME: in what cases do we actually need to send this message?
-            // I think it's *safe* to do so, but when *should* we?
-            this.channel.write(
-                new Rpc({
-                    id: BigInt(id),
-                    header: requestHeader,
-                    trailer: {},
-                    status: {
-                        code: Code.Aborted,
-                    },
-                }),
-            ).catch(() => {});
+            if (!serverHasClosedStream || !clientHasClosedStream) {
+                this.channel.write(
+                    new Rpc({
+                        id: BigInt(id),
+                        header: requestHeader,
+                        trailer: {},
+                        status: {
+                            code: Code.Aborted,
+                        },
+                    }),
+                ).catch(() => {});
+            }
 
             req.signal.removeEventListener("abort", notifyAbort);
         };
@@ -316,13 +314,9 @@ export class GoatTransport implements Transport {
                             trailer: {},
                         }),
                     );
+                    clientHasClosedStream = true;
                 }
                 catch (err) {
-                    // We might get an exception here due to the client throwing one, so the
-                    // channel might be ok. If that's the case, we still need to write our
-                    // "end stream" message.
-                    // TODO: implement and test me.
-
                     reject(err);
                     return;
                 }
@@ -347,12 +341,14 @@ export class GoatTransport implements Transport {
                                     throw rpc;
                                 }
                                 if (rpc.status && rpc.status.code != 0) {
+                                    serverHasClosedStream = true;
                                     throw new ConnectError(rpc.status.message, rpc.status.code, undefined, rpc.status.details);
                                 }
                                 if (rpc.body) {
                                     yield serdes.getO(true).parse(rpc.body.data);
                                 }
                                 if (rpc.trailer) {
+                                    serverHasClosedStream = true;
                                     return;
                                 }
                             }
