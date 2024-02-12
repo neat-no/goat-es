@@ -237,9 +237,34 @@ export class GoatTransport implements Transport {
                 outputIterable.write(new DOMException(req.signal.reason, "AbortError")).catch(() => {});
             }
         };
+        var serverHasClosedStream = false;
+        var clientHasClosedStream = false;
         const cleanup = () => {
             this.outstanding.delete(id);
             outputIterable.close();
+
+            // If, when we are cleaning up here, we have yet to fully finish the stream, ensure
+            // we send an abort message if at all possible (i.e. if the channel is working).
+            //
+            // GRPC docs: "When an application or runtime error occurs during an RPC a Status and Status-Message
+            // are delivered in Trailers.
+            // In some cases it is possible that the framing of the message stream has become corrupt and the RPC
+            // runtime will choose to use an RST_STREAM frame to indicate this state to its peer. RPC runtime
+            // implementations should interpret RST_STREAM as immediate full-closure of the stream and should
+            // propagate an error up to the calling application layer."
+            if (!serverHasClosedStream || !clientHasClosedStream) {
+                this.channel.write(
+                    new Rpc({
+                        id: BigInt(id),
+                        header: requestHeader,
+                        trailer: {},
+                        status: {
+                            code: Code.Aborted,
+                        },
+                    }),
+                ).catch(() => {});
+            }
+
             req.signal.removeEventListener("abort", notifyAbort);
         };
 
@@ -289,6 +314,7 @@ export class GoatTransport implements Transport {
                             trailer: {},
                         }),
                     );
+                    clientHasClosedStream = true;
                 }
                 catch (err) {
                     reject(err);
@@ -315,12 +341,14 @@ export class GoatTransport implements Transport {
                                     throw rpc;
                                 }
                                 if (rpc.status && rpc.status.code != 0) {
+                                    serverHasClosedStream = true;
                                     throw new ConnectError(rpc.status.message, rpc.status.code, undefined, rpc.status.details);
                                 }
                                 if (rpc.body) {
                                     yield serdes.getO(true).parse(rpc.body.data);
                                 }
                                 if (rpc.trailer) {
+                                    serverHasClosedStream = true;
                                     return;
                                 }
                             }
