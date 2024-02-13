@@ -6,6 +6,8 @@
 import { Any, proto3 } from "@bufbuild/protobuf";
 
 /**
+ * Top-level message used for all GOAT communications.
+ *
  * @generated from message goatorepo.Rpc
  */
 export const Rpc = proto3.makeMessageType(
@@ -16,6 +18,7 @@ export const Rpc = proto3.makeMessageType(
     { no: 3, name: "status", kind: "message", T: ResponseStatus },
     { no: 4, name: "body", kind: "message", T: Body },
     { no: 5, name: "trailer", kind: "message", T: Trailer },
+    { no: 6, name: "reset", kind: "message", T: Reset },
   ],
 );
 
@@ -79,6 +82,16 @@ export const Trailer = proto3.makeMessageType(
   "goatorepo.Trailer",
   () => [
     { no: 1, name: "metadata", kind: "message", T: KeyValue, repeated: true },
+  ],
+);
+
+/**
+ * @generated from message goatorepo.Reset
+ */
+export const Reset = proto3.makeMessageType(
+  "goatorepo.Reset",
+  () => [
+    { no: 1, name: "type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ],
 );
 

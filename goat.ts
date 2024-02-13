@@ -257,9 +257,8 @@ export class GoatTransport implements Transport {
                     new Rpc({
                         id: BigInt(id),
                         header: requestHeader,
-                        trailer: {},
-                        status: {
-                            code: Code.Aborted,
+                        reset: {
+                            type: "RST_STREAM",
                         },
                     }),
                 ).catch(() => {});

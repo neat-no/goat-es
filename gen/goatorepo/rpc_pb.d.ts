@@ -7,37 +7,60 @@ import type { Any, BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, Par
 import { Message, proto3 } from "@bufbuild/protobuf";
 
 /**
+ * Top-level message used for all GOAT communications.
+ *
  * @generated from message goatorepo.Rpc
  */
 export declare class Rpc extends Message<Rpc> {
   /**
+   * Analogous to a "Stream Identifier" in HTTP/2: allocated by the initator of an RPC, a
+   * unique identifier used to group requests and responses specific to this request.
+   *
    * @generated from field: uint64 id = 1;
    */
   id: bigint;
 
   /**
+   * Information identifying the request to be made; hence always set in the initial
+   * request. At a minimum in such a request, the RPC method to be invoked is set. This
+   * information is transferred in the URL path in HTTP/2.
+   *
    * @generated from field: goatorepo.RequestHeader header = 2;
    */
   header?: RequestHeader;
 
   /**
+   * When a request finishes, it is explicitly marked with a status code, and
+   * with trailers. In HTTP/2 this is communicated with a HEADERS frame following the
+   * response DATA frame, with certain canonical headers set like `grpc-status`.
+   *
    * @generated from field: goatorepo.ResponseStatus status = 3;
    */
   status?: ResponseStatus;
 
   /**
-   * Request or response body (protobuf data)
+   * The actual RPC request or response data: just some opaque bytes, this is usually
+   * protobuf-serialised bytes.
    *
    * @generated from field: goatorepo.Body body = 4;
    */
   body?: Body;
 
   /**
-   * Stream control responses
+   * Like status, this is sent as part of a response, and allows arbitrary key/values
+   * to be communicated. This maps onto "Trailers" in the HTTP/2 encoding, but without
+   * status-code, which is encoded explicitly above.
    *
    * @generated from field: goatorepo.Trailer trailer = 5;
    */
   trailer?: Trailer;
+
+  /**
+   * Abnormal reset information, like RST_STREAM in HTTP/2.
+   *
+   * @generated from field: goatorepo.Reset reset = 6;
+   */
+  reset?: Reset;
 
   constructor(data?: PartialMessage<Rpc>);
 
@@ -217,5 +240,29 @@ export declare class Trailer extends Message<Trailer> {
   static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Trailer;
 
   static equals(a: Trailer | PlainMessage<Trailer> | undefined, b: Trailer | PlainMessage<Trailer> | undefined): boolean;
+}
+
+/**
+ * @generated from message goatorepo.Reset
+ */
+export declare class Reset extends Message<Reset> {
+  /**
+   * @generated from field: string type = 1;
+   */
+  type: string;
+
+  constructor(data?: PartialMessage<Reset>);
+
+  static readonly runtime: typeof proto3;
+  static readonly typeName = "goatorepo.Reset";
+  static readonly fields: FieldList;
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Reset;
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Reset;
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Reset;
+
+  static equals(a: Reset | PlainMessage<Reset> | undefined, b: Reset | PlainMessage<Reset> | undefined): boolean;
 }
 
