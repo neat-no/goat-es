@@ -574,12 +574,13 @@ describe("unit: streaming RPCs", () => {
         if (finish) finish();
         await vi.runAllTimersAsync();
 
-        // The last RPC should have "trailer" set.
+        // The last RPC should be RST_STREAM
         expect(mock.record.length).toBeGreaterThanOrEqual(1);
         const lastRpc = mock.record[mock.record.length - 1];
 
         expect(lastRpc.body).not.toBeDefined();
-        expect(lastRpc.trailer).toBeDefined();
+        expect(lastRpc.reset).toBeDefined();
+        expect(lastRpc.reset?.type).toBe("RST_STREAM");
     });
 
     it("closes server stream on abort signal", async () => {
@@ -641,9 +642,7 @@ describe("unit: streaming RPCs", () => {
 
         // Now the abort should have resulted in an abort stream message
         expect(mock.record.length).toBe(4);
-        expect(mock.record[3].trailer).toBeDefined();
-        expect(mock.record[3].status).toBeDefined();
-        expect(mock.record[3].status?.code).toBe(Code.Aborted);
+        expect(mock.record[3].reset).toBeDefined();
     });
 
     it("handles exception in async iterable for upload", async () => {
@@ -680,8 +679,6 @@ describe("unit: streaming RPCs", () => {
         const lastRpc = mock.record[mock.record.length - 1];
 
         expect(lastRpc.body).not.toBeDefined();
-        expect(lastRpc.trailer).toBeDefined();
-        expect(lastRpc.status).toBeDefined();
-        expect(lastRpc.status?.code).toBe(Code.Aborted);
+        expect(lastRpc.reset).toBeDefined();
     });
 });
