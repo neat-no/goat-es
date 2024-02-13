@@ -40,6 +40,15 @@ export const TestService = {
       kind: MethodKind.ServerStreaming,
     },
     /**
+     * @generated from rpc grpcwebsockets.TestService.ServerStreamThatSleeps
+     */
+    serverStreamThatSleeps: {
+      name: "ServerStreamThatSleeps",
+      I: Msg,
+      O: Msg,
+      kind: MethodKind.ServerStreaming,
+    },
+    /**
      * @generated from rpc grpcwebsockets.TestService.ClientStream
      */
     clientStream: {

@@ -40,6 +40,15 @@ export declare const TestService: {
       readonly kind: MethodKind.ServerStreaming,
     },
     /**
+     * @generated from rpc grpcwebsockets.TestService.ServerStreamThatSleeps
+     */
+    readonly serverStreamThatSleeps: {
+      readonly name: "ServerStreamThatSleeps",
+      readonly I: typeof Msg,
+      readonly O: typeof Msg,
+      readonly kind: MethodKind.ServerStreaming,
+    },
+    /**
      * @generated from rpc grpcwebsockets.TestService.ClientStream
      */
     readonly clientStream: {

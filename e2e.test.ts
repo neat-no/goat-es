@@ -130,6 +130,28 @@ describe("integration: e2e", () => {
         await rpcs.disconnect();
     });
 
+    it("aborts server stream", async () => {
+        const rpcs = new WebsocketRpcs(e2e_test_addr);
+        await rpcs.connect();
+
+        const t = new GoatTransport(rpcs, { destinationName: "e2e" });
+        const ts = createPromiseClient(TestService, t);
+        const ab = new AbortController();
+
+        const streamPromise = expect(async () => {
+            for await (const ret of ts.serverStreamThatSleeps(new Msg({ value: 60 }), { signal: ab.signal })) {
+                // We should never get here!
+                expect(ret).toBeUndefined();
+            }
+        }).rejects.toThrow("This operation was aborted");
+
+        ab.abort();
+
+        await streamPromise;
+
+        await rpcs.disconnect();
+    });
+
     it("performs client stream", async () => {
         const rpcs = new WebsocketRpcs(e2e_test_addr);
         await rpcs.connect();
