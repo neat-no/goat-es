@@ -254,20 +254,22 @@ describe("unit: streaming RPCs", () => {
         const unhandledRejectionFn = vi.fn();
         const p = process.addListener("unhandledRejection", unhandledRejectionFn);
 
-        // Remove event listener and expect no unhandled rejections
         return () => {
+            // Run any outstanding tasks, then remove the event listener.
+            // This is a best-effort attempt to match unhandled rejections with
+            // the test running them, so we can fail that specific test in the
+            // expect statement below.
+            vi.runAllTimers().runAllTicks().useRealTimers();
             p.removeListener("unhandledRejection", unhandledRejectionFn);
 
-            // Expect any unhandled rejections do not have a defined reason
+            // Check for any callers of the unhandledRejection mock caught during the test,
+            // and assert that they were not called with a defined error.
             const mockCallArgs = unhandledRejectionFn.mock.lastCall;
             if (mockCallArgs) {
-                expect(mockCallArgs[0]).not.toBeDefined();
+                const unhandledRejectionError = mockCallArgs[0];
+                expect(unhandledRejectionError).not.toBeDefined();
             }
         };
-    });
-    afterEach(() => {
-        vi.runAllTimers();
-        vi.useRealTimers();
     });
 
     class MockClientStreamResponder {
