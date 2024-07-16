@@ -264,6 +264,7 @@ describe("unit: streaming RPCs", () => {
 
             // Check for any callers of the unhandledRejection mock caught during the test,
             // and assert that they were not called with a defined error.
+            // This way, we print the error in the test output.
             const mockCallArgs = unhandledRejectionFn.mock.lastCall;
             if (mockCallArgs) {
                 const unhandledRejectionError = mockCallArgs[0];
