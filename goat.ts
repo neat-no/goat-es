@@ -322,7 +322,7 @@ export class GoatTransport implements Transport {
                 resolve();
             });
             uploadPromise.catch(err => {
-                outputIterable.write(new Error(`upload error: ${err}`));
+                outputIterable.write(new Error(`upload error: ${err}`)).catch(() => {});
             });
 
             return {

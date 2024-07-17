@@ -247,10 +247,30 @@ describe("unit: streaming RPCs", () => {
 
     beforeEach(() => {
         vi.useFakeTimers();
-    });
-    afterEach(() => {
-        vi.runAllTimers();
-        vi.useRealTimers();
+
+        // Listen to unhandled rejections during tests (e.g. uncaught Promise exceptions).
+        // Note, to fail the test, we assert a mock function not to be called,
+        // instead of asserting directly in the event listener, to be in the test context.
+        const unhandledRejectionFn = vi.fn();
+        const p = process.addListener("unhandledRejection", unhandledRejectionFn);
+
+        return () => {
+            // Run any outstanding tasks, then remove the event listener.
+            // This is a best-effort attempt to match unhandled rejections with
+            // the test running them, so we can fail that specific test in the
+            // expect statement below.
+            vi.runAllTimers().runAllTicks().useRealTimers();
+            p.removeListener("unhandledRejection", unhandledRejectionFn);
+
+            // Check for any callers of the unhandledRejection mock caught during the test,
+            // and assert that they were not called with a defined error.
+            // This way, we print the error in the test output.
+            const mockCallArgs = unhandledRejectionFn.mock.lastCall;
+            if (mockCallArgs) {
+                const unhandledRejectionError = mockCallArgs[0];
+                expect(unhandledRejectionError).not.toBeDefined();
+            }
+        };
     });
 
     class MockClientStreamResponder {
@@ -680,5 +700,35 @@ describe("unit: streaming RPCs", () => {
 
         expect(lastRpc.body).not.toBeDefined();
         expect(lastRpc.reset).toBeDefined();
+    });
+
+    // See https://github.com/avos-io/goat-es/issues/13
+    it("handles exception when sending trailer after cleanup", async () => {
+        const mock = new MockClientStreamResponder();
+        mock.mockOnEnd(() => {
+            throw new Error("test trailer error");
+        });
+
+        const transport = new GoatTransport(mock);
+        const ts = createPromiseClient(TestService, transport);
+        const signalController: AbortController = new AbortController();
+
+        // Start the streaming RPC and abort before first message
+        const ret = await ts.bidiStream(
+            (async function* () {
+                signalController.abort(new Error("Test abort"));
+                yield new Msg({ value: 99 });
+            })(),
+            { signal: signalController.signal },
+        );
+
+        await expect(async () => {
+            for await (const msg of ret) {
+                expect(msg.value).toBe(99);
+            }
+        }).rejects.toThrow("[unknown] Test abort");
+
+        // Run any outstanding work in upload loop
+        await vi.runAllTimersAsync();
     });
 });
