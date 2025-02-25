@@ -372,7 +372,7 @@ function rpcHeadersToHeaders(reqHeader: KeyValue[] | undefined): Headers {
         return new Headers([]);
     }
     return new Headers(reqHeader.map(kv => {
-        return [kv.key, kv.value];
+        return [kv.key, kv.value] satisfies [string, string];
     }));
 }
 
