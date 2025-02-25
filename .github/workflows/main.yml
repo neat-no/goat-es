@@ -75,6 +75,8 @@ jobs:
       working-directory: goat
       run: |
         scripts/bootstrap
+        .bin/mockery --log-level=debug
+        echo "done with mockery, now task-gen"
         task gen
 
     - name: integration tests
