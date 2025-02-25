@@ -12,7 +12,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [20.x]
+        node-version: [22.x]
         # https://nodejs.org/en/about/previous-releases
 
     steps:
@@ -66,7 +66,7 @@ jobs:
     - name: Setup Golang with cache
       uses: magnetikonline/action-golang-cache@v3
       with:
-        go-version: 1.19
+        go-version: 1.24
 
     - name: Install Task
       uses: arduino/setup-task@v1
