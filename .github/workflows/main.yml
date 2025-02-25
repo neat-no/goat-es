@@ -26,7 +26,6 @@ jobs:
       uses: actions/checkout@v4
       with:
         repository: avos-io/goat
-        ref: sam/update-deps
         submodules: "true"
         path: goat
         
@@ -76,8 +75,6 @@ jobs:
       working-directory: goat
       run: |
         scripts/bootstrap
-        .bin/mockery --log-level=debug
-        echo "done with mockery, now task-gen"
         task gen
 
     - name: integration tests
