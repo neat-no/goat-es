@@ -702,7 +702,7 @@ describe("unit: streaming RPCs", () => {
         expect(lastRpc.reset).toBeDefined();
     });
 
-    // See https://github.com/avos-io/goat-es/issues/13
+    // See https://github.com/neat-no/goat-es/issues/13
     it("handles exception when sending trailer after cleanup", async () => {
         const mock = new MockClientStreamResponder();
         mock.mockOnEnd(() => {

@@ -1,6 +1,6 @@
 # Typescript / ECMAScript support for GOAT
 
-See [GOAT](https://github.com/avos-io/goat) for the canonical GOAT repository.
+See [GOAT](https://github.com/neat-no/goat) for the canonical GOAT repository.
 
 This repo provides a Typescript GOAT implementation.
 
