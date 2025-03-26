@@ -25,7 +25,7 @@ jobs:
     - name: checkout goat
       uses: actions/checkout@v4
       with:
-        repository: avos-io/goat
+        repository: neat-no/goat
         submodules: "true"
         path: goat
         
