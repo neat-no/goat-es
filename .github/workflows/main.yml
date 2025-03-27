@@ -123,6 +123,13 @@ jobs:
           DEFAULT_BUMP: patch
           BRANCH_HISTORY: compare # look for bumps in commits between last tag and this commit
 
+      - name: Set version in package.json and tag
+        run: |
+          VERSION=$(git describe --tags --abbrev=0)
+          npm version $VERSION --no-git-tag-version
+          git add package.json
+          git commit -m "Bump version to $VERSION"
+
       - name: Publish package
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
