@@ -28,7 +28,7 @@ jobs:
         repository: neat-no/goat
         submodules: "true"
         path: goat
-        
+
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v3
       with:
@@ -44,7 +44,7 @@ jobs:
           internal/.bin
           internal/dprint
         key: ${{ runner.os }}-bootstrap
-    
+
     - name: npm + deps + code gen
       working-directory: goat-es
       run: |
@@ -87,4 +87,41 @@ jobs:
         cd goat-es
         E2E_TEST_ADDR=ws://localhost:9043/test npm run test:integration
         kill %1
-      
+
+  tag-and-publish:
+    runs-on: ubuntu-latest
+    # if: |
+    #   (github.event_name == 'push') &&
+    #   (github.ref == 'refs/heads/main')
+    permissions:
+      packages: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://npm.pkg.github.com
+          # Scope defaults to @neat-no
+
+      - name: npm install
+        run: npm ci
+
+      - name: Bump version and push tag
+        id: tag
+        uses: anothrNick/github-tag-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WITH_V: true
+          DEFAULT_BUMP: patch
+          BRANCH_HISTORY: compare # look for bumps in commits between last tag and this commit
+
+      - name: Publish package
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm publish
