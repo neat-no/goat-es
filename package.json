@@ -1,6 +1,6 @@
 {
-    "name": "goat-es",
-    "version": "1.0.0",
+    "name": "@neat-no/goat-es",
+    "version": "1.1.3",
     "description": "GOAT in ECMAScript",
     "main": "goat.ts",
     "scripts": {
