@@ -2,7 +2,7 @@ name: main
 
 on:
   push:
-    # branches: [ "main" ]
+    branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
 
@@ -80,7 +80,7 @@ jobs:
     - name: integration tests
       run: |
         cd goat
-        go run cmd/e2e-websocket-test/main.go localhost:9043 & 
+        go run cmd/e2e-websocket-test/main.go localhost:9043 &
         cd ..
         # Give some time for the build above to complete and the process to listen on a port
         while ! nc -z localhost 9043; do sleep 0.1; done
@@ -90,10 +90,10 @@ jobs:
 
   tag-and-publish:
     runs-on: ubuntu-latest
-    # needs: build
-    # if: |
-    #   (github.event_name == 'push') &&
-    #   (github.ref == 'refs/heads/main')
+    needs: build
+    if: |
+      (github.event_name == 'push') &&
+      (github.ref == 'refs/heads/main')
     permissions:
       contents: write
       packages: write
