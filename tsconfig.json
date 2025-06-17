@@ -4,7 +4,7 @@
         "noEmit": true,
         "sourceMap": true,
         "noImplicitAny": true,
-        "module": "commonjs",
+        "module": "ESNext",
         "target": "ES2018",
         "noImplicitReturns": true,
         "noUnusedLocals": true,
@@ -13,9 +13,11 @@
         "useDefineForClassFields": true,
         "baseUrl": ".",
         "esModuleInterop": true,
+        "moduleResolution": "bundler",
         "resolveJsonModule": true,
         "skipLibCheck": true,
         "strict": true,
+        "verbatimModuleSyntax": true,
         "types": ["vitest/globals"]
     },
     "exclude": ["node_modules"]

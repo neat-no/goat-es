@@ -1,5 +1,5 @@
 import { Rpc } from "gen/goatorepo/rpc_pb";
-import { GoatTransport, RpcReadWriter } from "goat";
+import { GoatTransport, type RpcReadWriter } from "goat";
 import { AwaitableQueue } from "./util";
 import WebSocket from "ws";
 import { TestService } from "gen/testproto/test_connect";
