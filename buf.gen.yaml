@@ -1,10 +1,7 @@
-version: v1
+version: v2
 plugins:
-  - plugin: es
+  - local: ./node_modules/.bin/protoc-gen-es
     out: gen
-    path: ./node_modules/.bin/protoc-gen-es
+    opt: target=js+ts
+    include_imports: true
 
-  # This is only needed for test code -- it's for RPC definitions
-  - plugin: connect-es
-    out: gen
-    path: ./node_modules/.bin/protoc-gen-connect-es

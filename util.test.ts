@@ -47,7 +47,7 @@ describe("unit: AwaitableQueue", () => {
 
     it("handles multiple waiters", async () => {
         const q = new AwaitableQueue<number>();
-        var order: number[] = [];
+        const order: number[] = [];
 
         q.nonEmpty().then(() => {
             order.push(1);
