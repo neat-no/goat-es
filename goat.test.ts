@@ -10,9 +10,9 @@ import { BodySchema, ResponseStatusSchema, RpcSchema, type Body, type RequestHea
 const newFifoMockReadWrite = function () {
     const fifo = new AwaitableQueue<Rpc>();
     const mockRpcReadWrite = {
-        read: vi.fn<[], Promise<Rpc>>(),
-        write: vi.fn<[Rpc], Promise<void>>(),
-        done: vi.fn<[], void>(),
+        read: vi.fn<() => Promise<Rpc>>(),
+        write: vi.fn<(rpc: Rpc) => Promise<void>>(),
+        done: vi.fn<() => void>(),
     };
 
     vi.mocked(mockRpcReadWrite.write).mockImplementation(rpc => {
@@ -580,7 +580,7 @@ describe("unit: streaming RPCs", () => {
 
         signalController.abort("test abort");
 
-        expect(async () => {
+        const promise = expect(async () => {
             var count = 0;
             for await (const _ of ret) {
                 count++;
@@ -600,6 +600,8 @@ describe("unit: streaming RPCs", () => {
         expect(lastRpc.body).not.toBeDefined();
         expect(lastRpc.reset).toBeDefined();
         expect(lastRpc.reset?.type).toBe("RST_STREAM");
+
+        await promise;
     });
 
     it("closes server stream on abort signal", async () => {
