@@ -150,7 +150,7 @@ export class GoatTransport implements Transport {
         const serdes = createMethodSerializationLookup(req.method, undefined, undefined, { writeMaxBytes: 10000000, readMaxBytes: 10000000 });
         const id = this.nextId++;
         const { promise: rpcPromise, resolve: rpcResolve, reject: rpcReject } = promiseWithResolvers<Rpc>();
-        var ret: Rpc;
+        let ret: Rpc;
 
         req.signal.throwIfAborted();
         req.signal.addEventListener("abort", () => {
@@ -236,8 +236,8 @@ export class GoatTransport implements Transport {
                 outputIterable.write(new DOMException(req.signal.reason, "AbortError")).catch(() => {});
             }
         };
-        var serverHasClosedStream = false;
-        var clientHasClosedStream = false;
+        let serverHasClosedStream = false;
+        let clientHasClosedStream = false;
         const cleanup = () => {
             this.outstanding.delete(id);
             outputIterable.close();
@@ -290,36 +290,29 @@ export class GoatTransport implements Transport {
 
             // Start an async operation to stream our messages. In the case of a ServerStream,
             // there will just be a single message to upload. In other cases there can be many.
-            const uploadPromise = new Promise<void>(async (resolve, reject) => {
-                try {
-                    for await (const upload of req.message) {
-                        await this.channel.write(
-                            create(RpcSchema, {
-                                id: BigInt(id),
-                                header: requestHeader,
-                                body: {
-                                    data: serdes.getI(true).serialize(upload),
-                                },
-                            }),
-                        );
-                    }
-
-                    // Need to send an "end stream" command now, which means specifying a `trailer`
+            const uploadPromise = (async () => {
+                for await (const upload of req.message) {
                     await this.channel.write(
                         create(RpcSchema, {
                             id: BigInt(id),
                             header: requestHeader,
-                            trailer: {},
+                            body: {
+                                data: serdes.getI(true).serialize(upload),
+                            },
                         }),
                     );
-                    clientHasClosedStream = true;
                 }
-                catch (err) {
-                    reject(err);
-                    return;
-                }
-                resolve();
-            });
+
+                // Need to send an "end stream" command now, which means specifying a `trailer`
+                await this.channel.write(
+                    create(RpcSchema, {
+                        id: BigInt(id),
+                        header: requestHeader,
+                        trailer: {},
+                    }),
+                );
+                clientHasClosedStream = true;
+            })();
             uploadPromise.catch(err => {
                 outputIterable.write(new Error(`upload error: ${err}`)).catch(() => {});
             });
@@ -390,8 +383,8 @@ function methodName<I extends DescMessage, O extends DescMessage>(req: StreamReq
 // ~polyfill for Promise.withResolvers(), which was only introduced recently and is not supported everywhere.
 // See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/withResolvers
 function promiseWithResolvers<T>() {
-    var resolver: ((value: T) => void) | undefined = undefined;
-    var rejecter: ((value: any) => void) | undefined = undefined;
+    let resolver: ((value: T) => void) | undefined = undefined;
+    let rejecter: ((value: any) => void) | undefined = undefined;
     const promise = new Promise<T>((resolve, reject) => {
         resolver = resolve;
         rejecter = reject;

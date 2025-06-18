@@ -31,7 +31,7 @@ describe("unit: unary RPC", () => {
         const transport = new GoatTransport(newFifoMockReadWrite());
         const ts = createClient(TestService, transport);
 
-        for (var i = 0; i < 10; i++) {
+        for (let i = 0; i < 10; i++) {
             const ret = await ts.unary(create(MsgSchema, { value: i }));
             expect(ret.value).toBe(i);
         }
@@ -42,19 +42,19 @@ describe("unit: unary RPC", () => {
         const ts = createClient(TestService, transport);
         const reqs: Promise<Msg>[] = [];
 
-        for (var i = 0; i < 10; i++) {
+        for (let i = 0; i < 10; i++) {
             reqs.push(ts.unary(create(MsgSchema, { value: i })));
         }
 
         const results = await Promise.all(reqs);
 
-        for (var i = 0; i < 10; i++) {
+        for (let i = 0; i < 10; i++) {
             expect(results[i].value).toBe(i);
         }
     });
 
     it("errors on response status", async () => {
-        var first = true;
+        let first = true;
         const readRpcErr = {
             read: () => {
                 if (first) {
@@ -121,7 +121,7 @@ describe("unit: unary RPC", () => {
 
     it("handles read error during RPC", async () => {
         const mockRrw = newFifoMockReadWrite();
-        var readRejected: ((reason: any) => void) | undefined = undefined;
+        let readRejected: ((reason: any) => void) | undefined = undefined;
 
         mockRrw.read.mockImplementation(() => {
             // Don't resolve, just block indefinitely
@@ -147,7 +147,7 @@ describe("unit: unary RPC", () => {
 
     it("handles reset after read error", async () => {
         const mockRrw = newFifoMockReadWrite();
-        var readRejected: ((reason: any) => void) | undefined = undefined;
+        let readRejected: ((reason: any) => void) | undefined = undefined;
 
         mockRrw.read.mockImplementation(() => {
             // Don't resolve, just block indefinitely
@@ -208,11 +208,11 @@ describe("unit: unary RPC", () => {
 
     it("sends headers", async () => {
         const mockRrw = newFifoMockReadWrite();
-        var reqHeader: RequestHeader | undefined;
+        let reqHeader: RequestHeader | undefined;
 
         const origRead = mockRrw.read.getMockImplementation();
         mockRrw.read.mockImplementation(async () => {
-            const rpc = await origRead!!();
+            const rpc = await origRead!();
             reqHeader = rpc.header;
             return Promise.resolve(rpc);
         });
@@ -276,7 +276,7 @@ describe("unit: streaming RPCs", () => {
     class MockClientStreamResponder {
         private state: State = State.NotStarted;
         private q = new AwaitableQueue<Rpc>();
-        private onMsg: (rpc: Rpc) => void = (_: Rpc) => {};
+        private onMsg: (rpc: Rpc) => void = () => {};
         private onEnd: () => [Body?, ResponseStatus?] = () => {
             return [undefined, undefined];
         };
@@ -356,7 +356,7 @@ describe("unit: streaming RPCs", () => {
 
             const input = fromBinary(MsgSchema, rpc.body.data);
 
-            for (var i = 0; i < input.value; i++) {
+            for (let i = 0; i < input.value; i++) {
                 this.q.push(
                     create(RpcSchema, {
                         id: rpc.id,
@@ -486,7 +486,7 @@ describe("unit: streaming RPCs", () => {
             );
         }).rejects.toThrow("the operation timed out");
 
-        for (var i = 0; i < 10; i++) {
+        for (let i = 0; i < 10; i++) {
             await vi.advanceTimersByTimeAsync(250);
         }
 
@@ -494,7 +494,7 @@ describe("unit: streaming RPCs", () => {
     });
 
     it("performs client stream", async () => {
-        var count = 0;
+        let count = 0;
         const mock = new MockClientStreamResponder();
         mock.mockOnMsg((rpc: Rpc) => {
             if (rpc.body) {
@@ -522,7 +522,7 @@ describe("unit: streaming RPCs", () => {
 
         const transport = new GoatTransport(mock);
         const ts = createClient(TestService, transport);
-        var count = 0;
+        let count = 0;
 
         for await (const resp of ts.serverStream(create(MsgSchema, { value: 3 }))) {
             expect(resp.value).toBe(1);
@@ -542,7 +542,7 @@ describe("unit: streaming RPCs", () => {
             create(MsgSchema, { value: 1 }),
             create(MsgSchema, { value: 3 }),
         ]));
-        var count = 0;
+        let count = 0;
         for await (const msg of ret) {
             count += msg.value;
         }
@@ -556,7 +556,7 @@ describe("unit: streaming RPCs", () => {
         const ts = createClient(TestService, transport);
         const signalController: AbortController = new AbortController();
 
-        var finish: ((value: void | PromiseLike<void>) => void) | undefined;
+        let finish: ((value: void | PromiseLike<void>) => void) | undefined;
         const finishPromise = new Promise<void>(res => {
             finish = res;
         });
@@ -581,7 +581,7 @@ describe("unit: streaming RPCs", () => {
         signalController.abort("test abort");
 
         const promise = expect(async () => {
-            var count = 0;
+            let count = 0;
             for await (const _ of ret) {
                 count++;
             }
@@ -680,7 +680,7 @@ describe("unit: streaming RPCs", () => {
             })(),
         );
 
-        var numReceived = 0;
+        let numReceived = 0;
 
         await expect(async () => {
             for await (const msg of ret) {

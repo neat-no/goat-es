@@ -7,7 +7,7 @@ import { createClient } from "@connectrpc/connect";
 import { createAsyncIterable } from "@connectrpc/connect/protocol";
 import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
 
-var e2e_test_addr = process.env.E2E_TEST_ADDR ?? "ws://localhost:9043/test";
+const e2e_test_addr = process.env.E2E_TEST_ADDR ?? "ws://localhost:9043/test";
 
 if (!(e2e_test_addr.startsWith("ws://") || e2e_test_addr.startsWith("wss://"))) {
     console.error(`Destination must start with ws[s]:// (got: ${e2e_test_addr})`);
@@ -95,7 +95,7 @@ describe("integration: e2e", () => {
 
         const transport = new GoatTransport(rpcs, { destinationName: "e2e" });
         const ts = createClient(TestService, transport);
-        var trailerCount = 0, headerCount = 0;
+        let trailerCount = 0, headerCount = 0;
 
         const ret = await ts.unary(create(MsgSchema, { value: 123 }), {
             onHeader: headers => {
