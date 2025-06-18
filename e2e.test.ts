@@ -1,11 +1,11 @@
-import { Rpc } from "gen/goatorepo/rpc_pb";
+import { type Rpc, RpcSchema } from "gen/goatorepo/rpc_pb";
 import { GoatTransport, type RpcReadWriter } from "goat";
 import { AwaitableQueue } from "./util";
 import WebSocket from "ws";
-import { TestService } from "gen/testproto/test_connect";
-import { Msg } from "gen/testproto/test_pb";
-import { createPromiseClient } from "@connectrpc/connect";
+import { MsgSchema, TestService } from "gen/testproto/test_pb";
+import { createClient } from "@connectrpc/connect";
 import { createAsyncIterable } from "@connectrpc/connect/protocol";
+import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
 
 var e2e_test_addr = process.env.E2E_TEST_ADDR ?? "ws://localhost:9043/test";
 
@@ -25,7 +25,7 @@ class WebsocketRpcs implements RpcReadWriter {
 
         this.ws.on("message", data => {
             try {
-                const rpc = new Rpc({}).fromBinary(data as Uint8Array);
+                const rpc = fromBinary(RpcSchema, data as Uint8Array);
                 this.queue.push(rpc);
             }
             catch (err) {
@@ -55,7 +55,7 @@ class WebsocketRpcs implements RpcReadWriter {
     }
 
     async write(rpc: Rpc): Promise<void> {
-        this.ws.send(rpc.toBinary());
+        this.ws.send(toBinary(RpcSchema, rpc));
     }
 
     done() {}
@@ -81,9 +81,9 @@ describe("integration: e2e", () => {
         await rpcs.connect();
 
         const t = new GoatTransport(rpcs, { destinationName: "e2e", sourceName: "source" });
-        const ts = createPromiseClient(TestService, t);
+        const ts = createClient(TestService, t);
 
-        const val = await ts.unary(new Msg({ value: 21 }));
+        const val = await ts.unary(create(MsgSchema, { value: 21 }));
         expect(val.value).toBe(42);
 
         await rpcs.disconnect();
@@ -94,10 +94,10 @@ describe("integration: e2e", () => {
         await rpcs.connect();
 
         const transport = new GoatTransport(rpcs, { destinationName: "e2e" });
-        const ts = createPromiseClient(TestService, transport);
+        const ts = createClient(TestService, transport);
         var trailerCount = 0, headerCount = 0;
 
-        const ret = await ts.unary(new Msg({ value: 123 }), {
+        const ret = await ts.unary(create(MsgSchema, { value: 123 }), {
             onHeader: headers => {
                 expect(headers.get("foo")).toBe("baz");
                 headerCount++;
@@ -121,9 +121,9 @@ describe("integration: e2e", () => {
         await rpcs.connect();
 
         const t = new GoatTransport(rpcs, { destinationName: "e2e" });
-        const ts = createPromiseClient(TestService, t);
+        const ts = createClient(TestService, t);
 
-        const arr = await fromAsync(ts.serverStream(new Msg({ value: 6 })));
+        const arr = await fromAsync(ts.serverStream(create(MsgSchema, { value: 6 })));
 
         expect(arr.map(m => m.value)).toStrictEqual([0, 1, 2, 3, 4, 5]);
 
@@ -135,11 +135,11 @@ describe("integration: e2e", () => {
         await rpcs.connect();
 
         const t = new GoatTransport(rpcs, { destinationName: "e2e" });
-        const ts = createPromiseClient(TestService, t);
+        const ts = createClient(TestService, t);
         const ab = new AbortController();
 
         const streamPromise = expect(async () => {
-            for await (const ret of ts.serverStreamThatSleeps(new Msg({ value: 60 }), { signal: ab.signal })) {
+            for await (const ret of ts.serverStreamThatSleeps(create(MsgSchema, { value: 60 }), { signal: ab.signal })) {
                 // We should never get here!
                 expect(ret).toBeUndefined();
             }
@@ -157,12 +157,12 @@ describe("integration: e2e", () => {
         await rpcs.connect();
 
         const t = new GoatTransport(rpcs, { destinationName: "e2e" });
-        const ts = createPromiseClient(TestService, t);
+        const ts = createClient(TestService, t);
 
         const msg = await ts.clientStream(createAsyncIterable([
-            new Msg({ value: 3 }),
-            new Msg({ value: 2 }),
-            new Msg({ value: 1 }),
+            create(MsgSchema, { value: 3 }),
+            create(MsgSchema, { value: 2 }),
+            create(MsgSchema, { value: 1 }),
         ]));
 
         expect(msg.value).toBe(6);
@@ -175,10 +175,10 @@ describe("integration: e2e", () => {
         await rpcs.connect();
 
         const t = new GoatTransport(rpcs, { destinationName: "e2e" });
-        const ts = createPromiseClient(TestService, t);
+        const ts = createClient(TestService, t);
 
         const arr = await fromAsync(ts.bidiStream(createAsyncIterable(
-            [3, 1, 0].map(x => new Msg({ value: x })),
+            [3, 1, 0].map(x => create(MsgSchema, { value: x })),
         )));
 
         expect(arr.map(m => m.value)).toStrictEqual([0, 1, 2, 0]);

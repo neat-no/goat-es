@@ -6,7 +6,7 @@ This repo provides a Typescript GOAT implementation.
 
 ## Using
 
-See the unit tests for examples. In short, `GoatTransport` implements the `Transport` interface defined by [connect-es](https://github.com/connectrpc/connect-es). This means the `GoatTransport` instance can be passed to `createPromiseClient()` in lieu of e.g. `createGrpcWebTransport()`.
+See the unit tests for examples. In short, `GoatTransport` implements the `Transport` interface defined by [connect-es](https://github.com/connectrpc/connect-es). This means the `GoatTransport` instance can be passed to `createClient()` in lieu of e.g. `createGrpcWebTransport()`.
 
 ```typescript
 const underlying = {
@@ -18,8 +18,8 @@ const underlying = {
     },
 };
 const transport = new GoatTransport(underlying);
-const ts = createPromiseClient(TestService, transport);
-await ts.unary(new Msg({ value: i }));
+const ts = createClient(TestService, transport);
+await ts.unary(create(MsgSchema, { value: i }));
 ```
 
 There is a sample underlying implementation of WebSockets in `e2e.test.ts`.

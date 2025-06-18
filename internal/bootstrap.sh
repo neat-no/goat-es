@@ -20,7 +20,7 @@ install_buf() {
 	echo "Download buf..."
 
 	BIN="${bindir}" && \
-	VERSION="1.28.1" && \
+	VERSION="1.55.1" && \
 	echo "Downloading buf ${VERSION}..." && \
 	curl -sSL \
 	"https://github.com/bufbuild/buf/releases/download/v${VERSION}/buf-$(uname -s)-$(uname -m)" \

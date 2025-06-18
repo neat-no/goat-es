@@ -1,10 +1,10 @@
-import { KeyValue, RequestHeader, Rpc } from "./gen/goatorepo/rpc_pb";
-import { Message, type AnyMessage, type ServiceType, type MethodInfo, type PartialMessage } from "@bufbuild/protobuf";
+import { type KeyValue, KeyValueSchema, RequestHeaderSchema, type Rpc, RpcSchema } from "./gen/goatorepo/rpc_pb";
 import { Code, type ContextValues, createContextValues, type Transport, type StreamResponse, type UnaryRequest, type UnaryResponse, ConnectError, type StreamRequest, type Interceptor } from "@connectrpc/connect";
 import { runUnaryCall, runStreamingCall, createMethodSerializationLookup, createWritableIterable, pipe } from "@connectrpc/connect/protocol";
 import { AwaitableQueue } from "./util";
+import { create, type DescMessage, type DescMethodStreaming, type DescMethodUnary, type MessageInitShape } from "@bufbuild/protobuf";
 
-export { Rpc, AwaitableQueue };
+export { type Rpc, AwaitableQueue };
 
 export interface RpcReadWriter {
     read(): Promise<Rpc>;
@@ -82,15 +82,13 @@ export class GoatTransport implements Transport {
             });
     }
 
-    unary<I extends Message<I> = AnyMessage, O extends Message<O> = AnyMessage>(
-        service: ServiceType,
-        method: MethodInfo<I, O>,
-        signal: AbortSignal | undefined,
+    unary<I extends DescMessage, O extends DescMessage>(
+        method: DescMethodUnary<I, O>, 
+        signal: AbortSignal | undefined, 
         timeoutMs: number | undefined,
         header: HeadersInit | undefined,
-        input: PartialMessage<I>,
-        contextValues?: ContextValues | undefined,
-    ): Promise<UnaryResponse<I, O>> {
+        input: MessageInitShape<I>,
+        contextValues?: ContextValues): Promise<UnaryResponse<I, O>> {
         if (this.readError) {
             throw new Error(this.readError);
         }
@@ -101,13 +99,13 @@ export class GoatTransport implements Transport {
             timeoutMs: timeoutMs,
             req: {
                 stream: false,
-                service: service,
                 method: method,
+                service: method.parent,
                 header: new Headers(header),
                 contextValues: contextValues ?? createContextValues(),
                 url: "",
-                init: {},
                 message: input,
+                requestMethod: "POST",
             },
             next: req => {
                 return this.performUnary(req);
@@ -115,14 +113,13 @@ export class GoatTransport implements Transport {
         });
     }
 
-    stream<I extends Message<I> = AnyMessage, O extends Message<O> = AnyMessage>(
-        service: ServiceType,
-        method: MethodInfo<I, O>,
-        signal: AbortSignal | undefined,
-        timeoutMs: number | undefined,
-        header: HeadersInit | undefined,
-        input: AsyncIterable<PartialMessage<I>>,
-        contextValues?: ContextValues | undefined,
+    stream<I extends DescMessage, O extends DescMessage>(
+        method: DescMethodStreaming<I, O>, 
+        signal: AbortSignal | undefined, 
+        timeoutMs: number | undefined, 
+        header: HeadersInit | undefined, 
+        input: AsyncIterable<MessageInitShape<I>>, 
+        contextValues?: ContextValues
     ): Promise<StreamResponse<I, O>> {
         if (this.readError) {
             throw (new Error(this.readError));
@@ -134,13 +131,13 @@ export class GoatTransport implements Transport {
             timeoutMs: timeoutMs,
             req: {
                 stream: true,
-                service: service,
+                service: method.parent,
                 method: method,
                 header: new Headers(header),
                 contextValues: contextValues ?? createContextValues(),
                 url: "",
-                init: {},
                 message: input,
+                requestMethod: "POST",
             },
             next: req => {
                 return this.performStreaming(req);
@@ -148,7 +145,7 @@ export class GoatTransport implements Transport {
         });
     }
 
-    private async performUnary<I extends Message<I> = AnyMessage, O extends Message<O> = AnyMessage>(req: UnaryRequest<I, O>): Promise<UnaryResponse<I, O>> {
+    private async performUnary<I extends DescMessage, O extends DescMessage>(req: UnaryRequest<I, O>): Promise<UnaryResponse<I, O>> {
         const serdes = createMethodSerializationLookup(req.method, undefined, undefined, { writeMaxBytes: 10000000, readMaxBytes: 10000000 });
         const id = this.nextId++;
         const { promise: rpcPromise, resolve: rpcResolve, reject: rpcReject } = promiseWithResolvers<Rpc>();
@@ -162,7 +159,7 @@ export class GoatTransport implements Transport {
         this.outstanding.set(id, { resolve: rpcResolve, reject: rpcReject });
         try {
             await this.channel.write(
-                new Rpc({
+                create(RpcSchema, {
                     id: BigInt(id),
                     header: {
                         method: methodName(req),
@@ -187,6 +184,7 @@ export class GoatTransport implements Transport {
                 ret.status?.message || "Unknown",
                 ret.status?.code,
                 undefined,
+                undefined,
                 ret.status?.details,
             );
         }
@@ -208,17 +206,17 @@ export class GoatTransport implements Transport {
         }
     }
 
-    private async performStreaming<I extends Message<I> = AnyMessage, O extends Message<O> = AnyMessage>(req: StreamRequest<I, O>): Promise<StreamResponse<I, O>> {
+    private async performStreaming<I extends DescMessage, O extends DescMessage>(req: StreamRequest<I, O>): Promise<StreamResponse<I, O>> {
         const serdes = createMethodSerializationLookup(req.method, undefined, undefined, { writeMaxBytes: 10000000, readMaxBytes: 10000000 });
         const id = this.nextId++;
         const outputIterable = createWritableIterable<Rpc | Error>();
-        const initialRequestHeader = new RequestHeader({
+        const initialRequestHeader = create(RequestHeaderSchema, {
             method: methodName(req),
             headers: headersToRpcHeaders(req.header),
             destination: this.destination,
             source: this.source,
         });
-        const requestHeader = new RequestHeader({
+        const requestHeader = create(RequestHeaderSchema, {
             method: methodName(req),
             // Doesn't include `headers` -- this is only sent in the initial message
             destination: this.destination,
@@ -254,7 +252,7 @@ export class GoatTransport implements Transport {
             // propagate an error up to the calling application layer."
             if (!serverHasClosedStream || !clientHasClosedStream) {
                 this.channel.write(
-                    new Rpc({
+                    create(RpcSchema, {
                         id: BigInt(id),
                         header: requestHeader,
                         reset: {
@@ -283,7 +281,7 @@ export class GoatTransport implements Transport {
         try {
             // Streaming RPCs are always started with an explicit message which contains no body.
             await this.channel.write(
-                new Rpc({
+                create(RpcSchema, {
                     id: BigInt(id),
                     header: initialRequestHeader,
                 }),
@@ -295,7 +293,7 @@ export class GoatTransport implements Transport {
                 try {
                     for await (const upload of req.message) {
                         await this.channel.write(
-                            new Rpc({
+                            create(RpcSchema, {
                                 id: BigInt(id),
                                 header: requestHeader,
                                 body: {
@@ -307,7 +305,7 @@ export class GoatTransport implements Transport {
 
                     // Need to send an "end stream" command now, which means specifying a `trailer`
                     await this.channel.write(
-                        new Rpc({
+                        create(RpcSchema, {
                             id: BigInt(id),
                             header: requestHeader,
                             trailer: {},
@@ -341,7 +339,7 @@ export class GoatTransport implements Transport {
                                 }
                                 if (rpc.status && rpc.status.code != 0) {
                                     serverHasClosedStream = true;
-                                    throw new ConnectError(rpc.status.message, rpc.status.code, undefined, rpc.status.details);
+                                    throw new ConnectError(rpc.status.message, rpc.status.code, undefined, undefined, rpc.status.details);
                                 }
                                 if (rpc.body) {
                                     yield serdes.getO(true).parse(rpc.body.data);
@@ -379,12 +377,12 @@ function rpcHeadersToHeaders(reqHeader: KeyValue[] | undefined): Headers {
 function headersToRpcHeaders(input: HeadersInit | undefined): KeyValue[] {
     const headers: KeyValue[] = [];
     new Headers(input).forEach((value, key) => {
-        headers.push(new KeyValue({ key: key, value: value }));
+        headers.push(create(KeyValueSchema, { key: key, value: value }));
     });
     return headers;
 }
 
-function methodName<I extends Message<I> = AnyMessage, O extends Message<O> = AnyMessage>(req: StreamRequest<I, O> | UnaryRequest<I, O>): string {
+function methodName<I extends DescMessage, O extends DescMessage>(req: StreamRequest<I, O> | UnaryRequest<I, O>): string {
     return `/${req.service.typeName}/${req.method.name}`;
 }
 
