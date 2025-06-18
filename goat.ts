@@ -4,7 +4,7 @@ import { runUnaryCall, runStreamingCall, createMethodSerializationLookup, create
 import { AwaitableQueue } from "./util";
 import { create, type DescMessage, type DescMethodStreaming, type DescMethodUnary, type MessageInitShape } from "@bufbuild/protobuf";
 
-export { type Rpc, AwaitableQueue };
+export { type Rpc, RpcSchema, AwaitableQueue };
 
 export interface RpcReadWriter {
     read(): Promise<Rpc>;
