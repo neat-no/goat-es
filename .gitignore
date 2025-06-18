@@ -2,4 +2,3 @@ internal/dprint
 internal/.bin
 node_modules
 buf
-gen
