@@ -83,12 +83,13 @@ export class GoatTransport implements Transport {
     }
 
     unary<I extends DescMessage, O extends DescMessage>(
-        method: DescMethodUnary<I, O>, 
-        signal: AbortSignal | undefined, 
+        method: DescMethodUnary<I, O>,
+        signal: AbortSignal | undefined,
         timeoutMs: number | undefined,
         header: HeadersInit | undefined,
         input: MessageInitShape<I>,
-        contextValues?: ContextValues): Promise<UnaryResponse<I, O>> {
+        contextValues?: ContextValues,
+    ): Promise<UnaryResponse<I, O>> {
         if (this.readError) {
             throw new Error(this.readError);
         }
@@ -114,12 +115,12 @@ export class GoatTransport implements Transport {
     }
 
     stream<I extends DescMessage, O extends DescMessage>(
-        method: DescMethodStreaming<I, O>, 
-        signal: AbortSignal | undefined, 
-        timeoutMs: number | undefined, 
-        header: HeadersInit | undefined, 
-        input: AsyncIterable<MessageInitShape<I>>, 
-        contextValues?: ContextValues
+        method: DescMethodStreaming<I, O>,
+        signal: AbortSignal | undefined,
+        timeoutMs: number | undefined,
+        header: HeadersInit | undefined,
+        input: AsyncIterable<MessageInitShape<I>>,
+        contextValues?: ContextValues,
     ): Promise<StreamResponse<I, O>> {
         if (this.readError) {
             throw (new Error(this.readError));
