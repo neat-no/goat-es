@@ -119,6 +119,26 @@ describe("unit: unary RPC", () => {
         }).rejects.toThrow("[canceled] This operation was aborted");
     });
 
+    it("handles abort with non-Error reason during RPC", async () => {
+        const mockRrw = newFifoMockReadWrite();
+
+        mockRrw.read.mockImplementation(() => {
+            // Don't resolve, just block indefinitely
+            return new Promise<Rpc>(() => {});
+        });
+
+        const transport = new GoatTransport(mockRrw);
+        const ts = createClient(TestService, transport);
+        const signalController: AbortController = new AbortController();
+
+        await expect(async () => {
+            const rpc = ts.unary(create(MsgSchema, { value: 1 }), { signal: signalController.signal });
+            // Abort with a plain object (simulates WebSocket close event)
+            signalController.abort({ code: 1000, reason: "finished" });
+            await rpc;
+        }).rejects.toThrow("[canceled] aborted: code=1000, reason=finished");
+    });
+
     it("handles read error during RPC", async () => {
         const mockRrw = newFifoMockReadWrite();
         let readRejected: ((reason: any) => void) | undefined = undefined;
@@ -443,6 +463,87 @@ describe("unit: streaming RPCs", () => {
                 create(MsgSchema, { value: 3 }),
             ]));
         }).rejects.toThrow("upload error");
+    });
+
+    it("handles abnormal websocket close with proper error message", async () => {
+        // Code 1006 = abnormal closure - should produce an error with formatted message
+        const q = new AwaitableQueue<Rpc>();
+        let writeCount = 0;
+
+        const mock = {
+            async read() {
+                return q.pop();
+            },
+            async write(rpc: Rpc) {
+                writeCount++;
+                if (writeCount === 1) {
+                    q.push(create(RpcSchema, { id: rpc.id, header: rpc.header }));
+                    return;
+                }
+                if (writeCount === 2) {
+                    throw { code: 1006, reason: "abnormal closure" };
+                }
+            },
+            done() {},
+        };
+
+        const transport = new GoatTransport(mock);
+        const ts = createClient(TestService, transport);
+
+        await expect(async () => {
+            const ret = await ts.bidiStream(createAsyncIterable([
+                create(MsgSchema, { value: 42 }),
+            ]));
+            for await (const _ of ret) {
+                // consume
+            }
+        }).rejects.toThrow("upload error: code=1006, reason=abnormal closure");
+    });
+
+    it.each([
+        { code: 1000, reason: "normal closure" },
+        { code: 1001, reason: "going away" },
+    ])("handles clean websocket close (code $code) without error", async ({ code, reason }) => {
+        // Verify that clean WebSocket closes don't produce "upload error: [object Object]"
+        const q = new AwaitableQueue<Rpc>();
+        let writeCount = 0;
+
+        const mock = {
+            async read() {
+                return q.pop();
+            },
+            async write(rpc: Rpc) {
+                writeCount++;
+                if (writeCount === 1) {
+                    q.push(create(RpcSchema, { id: rpc.id, header: rpc.header }));
+                    return;
+                }
+                if (writeCount === 2) {
+                    q.push(create(RpcSchema, { id: rpc.id, header: rpc.header, body: rpc.body }));
+                    q.push(create(RpcSchema, { id: rpc.id, header: rpc.header, trailer: {} }));
+                    return;
+                }
+                if (writeCount === 3) {
+                    throw { code, reason };
+                }
+            },
+            done() {},
+        };
+
+        const transport = new GoatTransport(mock);
+        const ts = createClient(TestService, transport);
+
+        const ret = await ts.bidiStream(createAsyncIterable([
+            create(MsgSchema, { value: 42 }),
+        ]));
+
+        let receivedValue = 0;
+        for await (const msg of ret) {
+            receivedValue = msg.value;
+        }
+
+        expect(receivedValue).toBe(42);
+        await vi.runAllTimersAsync();
     });
 
     it("handles client stream abort", async () => {

@@ -6,6 +6,38 @@ import { create, type DescMessage, type DescMethodStreaming, type DescMethodUnar
 
 export { type Rpc, RpcSchema, AwaitableQueue };
 
+/**
+ * Check if an error represents a clean WebSocket close.
+ * Code 1000 = normal closure, 1001 = going away (e.g., page navigation).
+ */
+function isCleanClose(err: unknown): boolean {
+    return err != null &&
+        typeof err === "object" &&
+        "code" in err &&
+        (err.code === 1000 || err.code === 1001);
+}
+
+/**
+ * Convert an unknown error value to a descriptive string message.
+ * Handles objects with code/reason properties (like WebSocket close events).
+ */
+function errorToMessage(err: unknown): string {
+    if (err == null) {
+        return "unknown error";
+    }
+    if (err instanceof Error) {
+        return err.message;
+    }
+    if (typeof err === "object") {
+        const { code, reason } = err as { code?: number; reason?: string };
+        if (code !== undefined || reason !== undefined) {
+            return `code=${code}, reason=${reason}`;
+        }
+        return JSON.stringify(err);
+    }
+    return String(err);
+}
+
 export interface RpcReadWriter {
     read(): Promise<Rpc>;
     write(rpc: Rpc): Promise<void>;
@@ -154,7 +186,14 @@ export class GoatTransport implements Transport {
 
         req.signal.throwIfAborted();
         req.signal.addEventListener("abort", () => {
-            rpcReject(req.signal.reason);
+            const reason = req.signal.reason;
+            if (reason instanceof Error || reason instanceof DOMException) {
+                rpcReject(reason);
+            }
+            else {
+                const message = reason == null ? "aborted" : `aborted: ${errorToMessage(reason)}`;
+                rpcReject(new DOMException(message, "AbortError"));
+            }
         });
 
         this.outstanding.set(id, { resolve: rpcResolve, reject: rpcReject });
@@ -229,11 +268,13 @@ export class GoatTransport implements Transport {
             // and the consumer has stopped reading from our output. So be sure to catch() and
             // ignore any errors in such a case; else we're left with dangling promises that at
             // the very least cause test failures due to an "Unhandled Rejection".
-            if (req.signal.reason instanceof Error || req.signal.reason instanceof DOMException) {
-                outputIterable.write(req.signal.reason).catch(() => {});
+            const reason = req.signal.reason;
+            if (reason instanceof Error || reason instanceof DOMException) {
+                outputIterable.write(reason).catch(() => {});
             }
             else {
-                outputIterable.write(new DOMException(req.signal.reason, "AbortError")).catch(() => {});
+                const message = reason == null ? "aborted" : `aborted: ${errorToMessage(reason)}`;
+                outputIterable.write(new DOMException(message, "AbortError")).catch(() => {});
             }
         };
         let serverHasClosedStream = false;
@@ -314,7 +355,10 @@ export class GoatTransport implements Transport {
                 clientHasClosedStream = true;
             })();
             uploadPromise.catch(err => {
-                outputIterable.write(new Error(`upload error: ${err}`)).catch(() => {});
+                if (isCleanClose(err)) {
+                    return;
+                }
+                outputIterable.write(new Error(`upload error: ${errorToMessage(err)}`)).catch(() => {});
             });
 
             return {
