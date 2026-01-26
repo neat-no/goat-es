@@ -29,7 +29,7 @@ function errorToMessage(err: unknown): string {
         return err.message;
     }
     if (typeof err === "object") {
-        const { code, reason } = err as { code?: number; reason?: string };
+        const { code, reason } = err as { code?: number; reason?: string; };
         if (code !== undefined || reason !== undefined) {
             return `code=${code}, reason=${reason}`;
         }
